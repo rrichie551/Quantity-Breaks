@@ -241,20 +241,20 @@ export default function VolumeDiscount() {
     {
         id: "basic",
         title: "Custom Discount",
-        description: "Create simple quantity break discounts with fixed percentage or dollar savings.",
-        image: "URL_TO_BASIC_IMAGE",
+        description: "Create straightforward quantity break discounts, offering fixed percentage or dollar-based savings as customers purchase higher quantities.",
+        image: "https://cdn.shopify.com/s/files/1/0641/6033/3877/files/Screenshot_2024-11-25_at_5.06.56_PM.png?v=1732534629",
       },
       {
         id: "tiered",
         title: "Bulk Discount",
         description: "Encourage larger purchases with progressive discounts. Examples include 'Buy 2 Save 10%, Buy 4 Save 20%, Buy 6 Save 30%'.",
-        image: "URL_TO_TIERED_IMAGE",
+        image: "https://cdn.shopify.com/s/files/1/0641/6033/3877/files/Screenshot_2024-11-25_at_5.02.14_PM.png?v=1732534358",
       },
       {
         id: "bxgy",
         title: "Buy X Get Y",
-        description: "Offer free items when customers buy a specific quantity. Examples include 'Buy 1 Get 1 Free' or 'Buy 2 Get 2 Free'.",
-        image: "URL_TO_BXGY_IMAGE",
+        description: "Offer free bonus items when customers buy a specific quantity. Examples include 'Buy 1 Get 1 Free', 'Buy 2 Get 2 Free' or 'Buy 3 Get 3 Free'",
+        image: "https://cdn.shopify.com/s/files/1/0641/6033/3877/files/Screenshot_2024-11-21_at_10.23.50_AM.png?v=1732533680",
       }
   ];
 
@@ -463,13 +463,11 @@ export default function VolumeDiscount() {
                       <img
                         src={type.image}
                         alt={type.title}
-                        style={{ width: "100%", height: "auto" }}
+                        style={{ width: "100%", height: "300px" }}
                       />
                       <Text variant="headingSm" as="h3">{type.title}</Text>
                       <Text variant="bodyMd" as="p">{type.description}</Text>
-                      {formData.discountType === type.id && (
-                        <Icon source={CheckIcon} color="success" />
-                      )}
+              
                     </BlockStack>
                   </Box>
                 </Grid.Cell>
