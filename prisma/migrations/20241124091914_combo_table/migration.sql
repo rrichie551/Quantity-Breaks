@@ -1,0 +1,60 @@
+-- CreateTable
+CREATE TABLE "Combo" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "offerName" TEXT NOT NULL,
+    "comboTitle" TEXT,
+    "products" JSONB NOT NULL,
+    "discountType" TEXT NOT NULL,
+    "discountValue" DOUBLE PRECISION NOT NULL,
+    "callToAction" TEXT NOT NULL DEFAULT 'Add to Cart',
+    "highlightedTag" TEXT,
+    "footerText" TEXT,
+    "titleSize" INTEGER NOT NULL DEFAULT 20,
+    "titleStyle" TEXT NOT NULL DEFAULT 'normal',
+    "titleColor" TEXT NOT NULL DEFAULT '#000000',
+    "productTitleSize" INTEGER NOT NULL DEFAULT 14,
+    "productTitleStyle" TEXT NOT NULL DEFAULT 'normal',
+    "productTitleColor" TEXT NOT NULL DEFAULT '#000000',
+    "priceSize" INTEGER NOT NULL DEFAULT 14,
+    "priceStyle" TEXT NOT NULL DEFAULT 'normal',
+    "priceColor" TEXT NOT NULL DEFAULT '#000000',
+    "totalPriceSize" INTEGER NOT NULL DEFAULT 16,
+    "totalPriceStyle" TEXT NOT NULL DEFAULT 'bold',
+    "totalPriceColor" TEXT NOT NULL DEFAULT '#000000',
+    "strikePriceSize" INTEGER NOT NULL DEFAULT 14,
+    "strikePriceStyle" TEXT NOT NULL DEFAULT 'normal',
+    "strikePriceColor" TEXT NOT NULL DEFAULT '#999999',
+    "footerTextSize" INTEGER NOT NULL DEFAULT 12,
+    "footerTextStyle" TEXT NOT NULL DEFAULT 'normal',
+    "footerTextColor" TEXT NOT NULL DEFAULT '#666666',
+    "tagSize" INTEGER NOT NULL DEFAULT 12,
+    "tagStyle" TEXT NOT NULL DEFAULT 'normal',
+    "tagColor" TEXT NOT NULL DEFAULT '#FFFFFF',
+    "tagBackground" TEXT NOT NULL DEFAULT '#000000',
+    "buttonTextSize" INTEGER NOT NULL DEFAULT 14,
+    "buttonTextColor" TEXT NOT NULL DEFAULT '#FFFFFF',
+    "buttonBackground" TEXT NOT NULL DEFAULT '#000000',
+    "buttonBorderRadius" INTEGER NOT NULL DEFAULT 4,
+    "productSpacing" INTEGER NOT NULL DEFAULT 15,
+    "containerPadding" INTEGER NOT NULL DEFAULT 20,
+    "containerBackground" TEXT NOT NULL DEFAULT '#FFFFFF',
+    "containerBorderRadius" INTEGER NOT NULL DEFAULT 8,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "quantityInputSize" INTEGER NOT NULL DEFAULT 14,
+    "quantityInputStyle" TEXT NOT NULL DEFAULT 'normal',
+    "quantityInputColor" TEXT NOT NULL DEFAULT '#000000',
+    "quantityLabelSize" INTEGER NOT NULL DEFAULT 4,
+    "quantityLabelRadius" INTEGER NOT NULL DEFAULT 4,
+    "quantityLabelColor" TEXT NOT NULL DEFAULT '#666666',
+
+    CONSTRAINT "Combo_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "Combo_sessionId_idx" ON "Combo"("sessionId");
+
+-- AddForeignKey
+ALTER TABLE "Combo" ADD CONSTRAINT "Combo_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

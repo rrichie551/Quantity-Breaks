@@ -3,15 +3,24 @@
 client_id = "d8164210c51d8fc118bd925bb77be7e0"
 name = "Quantity-Breaks-Shumais"
 handle = "quantity-breaks-shumais"
-application_url = "https://example.com/"
+application_url = "https://possess-greek-bedding-complete.trycloudflare.com"
 embedded = true
+
+[build]
+dev_store_url = "bundle-app-v5.myshopify.com"
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://possess-greek-bedding-complete.trycloudflare.com/auth/callback",
+  "https://possess-greek-bedding-complete.trycloudflare.com/auth/shopify/callback",
+  "https://possess-greek-bedding-complete.trycloudflare.com/api/auth/callback"
+]
 
 [webhooks]
 api_version = "2024-10"
@@ -22,3 +31,8 @@ api_version = "2024-10"
 
 [pos]
 embedded = false
+
+[app_proxy]
+url = "https://possess-greek-bedding-complete.trycloudflare.com/app/proxy"
+subpath = "quantityTsting"
+prefix = "apps"

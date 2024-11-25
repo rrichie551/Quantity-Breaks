@@ -1,0 +1,335 @@
+<style>
+  .comboDiscountContainer {
+    cursor: pointer;
+    transition: all 0.4s ease;
+  }
+  .addToCartBtn {
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .addToCartBtn:hover {
+    opacity: 0.9;
+  }
+</style>
+
+<script>
+var curr = {{ shop.currency | json }};
+var formatF = {{ shop.money_format | json }};
+
+function formatMoney(cents, format) {
+  if (typeof cents === 'string') cents = cents.replace('.', '');
+  var value = '';
+  var placeholderRegex = /\{\{\s*(\w+)\s*\}\}/;
+  var formatString = format || formatF;
+
+  function defaultOption(opt, def) {
+    return (typeof opt == 'undefined' ? def : opt);
+  }
+
+  function formatWithDelimiters(number, precision, thousands, decimal) {
+    precision = defaultOption(precision, 2);
+    thousands = defaultOption(thousands, ',');
+    decimal = defaultOption(decimal, '.');
+
+    if (isNaN(number) || number == null) { return 0; }
+
+    number = (number/100.0).toFixed(precision);
+
+    var parts = number.split('.'),
+        dollars = parts[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1' + thousands),
+        cents = parts[1] ? (decimal + parts[1]) : '';
+
+    return dollars + cents;
+  }
+
+  switch(formatString.match(placeholderRegex)[1]) {
+    case 'amount':
+      value = formatWithDelimiters(cents, 2);
+      break;
+    case 'amount_no_decimals':
+      value = formatWithDelimiters(cents, 0);
+      break;
+    case 'amount_with_comma_separator':
+      value = formatWithDelimiters(cents, 2, '.', ',');
+      break;
+    case 'amount_no_decimals_with_comma_separator':
+      value = formatWithDelimiters(cents, 0, '.', ',');
+      break;
+  }
+
+  return formatString.replace(placeholderRegex, value);
+}
+
+function calculateComboPrice(combo, products) {
+  const totalPrice = products.reduce((sum, product) => 
+    sum + (parseFloat(product.price) * product.quantity), 0
+  );
+  let discountedPrice = totalPrice;
+
+  switch (combo.discountType) {
+    case 'percentage':
+      discountedPrice = totalPrice * (1 - (parseFloat(combo.discountValue) / 100));
+      break;
+    case 'fixed':
+      discountedPrice = totalPrice - parseFloat(combo.discountValue);
+      break;
+    case 'fixed-price':
+      discountedPrice = parseFloat(combo.discountValue);
+      break;
+    case 'flat-per-item':
+      const totalItems = products.reduce((sum, product) => sum + product.quantity, 0);
+      discountedPrice = totalPrice - (parseFloat(combo.discountValue) * totalItems);
+      break;
+  }
+
+  return {
+    total: totalPrice,
+    discounted: Math.max(0, discountedPrice)
+  };
+}
+
+function createComboDiscount(data, targetSelector) {
+  // Create main container
+  const container = document.createElement('div');
+  container.className = 'comboDiscountContainer';
+  container.style.backgroundColor = data.containerBackground;
+  container.style.padding = `${data.containerPadding}px`;
+  container.style.borderRadius = `${data.containerBorderRadius}px`;
+
+  // Add title
+  const title = document.createElement('div');
+  title.style.fontSize = `${data.titleSize}px`;
+  title.style[data.titleStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.titleStyle;
+  title.style.color = data.titleColor;
+  title.style.textAlign = 'center';
+  title.style.marginBottom = '20px';
+  title.textContent = data.comboTitle || 'Bundle & Save';
+  container.appendChild(title);
+
+  // Products stack
+  const productsStack = document.createElement('div');
+  productsStack.style.display = 'flex';
+  productsStack.style.flexDirection = 'column';
+  productsStack.style.gap = `${data.productSpacing}px`;
+
+  data.products.forEach((product, index) => {
+    const productDiv = document.createElement('div');
+    
+    const productContent = document.createElement('div');
+    productContent.style.display = 'flex';
+    productContent.style.alignItems = 'center';
+    productContent.style.gap = '15px';
+
+    // Product image
+    if (product.image) {
+      const img = document.createElement('img');
+      img.src = product.image.originalSrc || product.image.url;
+      img.alt = product.title;
+      img.style.width = '60px';
+      img.style.height = '60px';
+      img.style.objectFit = 'cover';
+      productContent.appendChild(img);
+    }
+
+    // Product info
+    const productInfo = document.createElement('div');
+    productInfo.style.flex = '1';
+    productInfo.style.display = 'flex';
+    productInfo.style.justifyContent = 'space-between';
+    productInfo.style.alignItems = 'center';
+
+    // Title and quantity
+    const titleQuantity = document.createElement('div');
+    titleQuantity.style.display = 'flex';
+    titleQuantity.style.flexDirection = 'column';
+    titleQuantity.style.gap = '4px';
+
+    const productTitle = document.createElement('span');
+    productTitle.style.fontSize = `${data.productTitleSize}px`;
+    productTitle.style[data.productTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.productTitleStyle;
+    productTitle.style.color = data.productTitleColor;
+    productTitle.textContent = product.title;
+
+    const quantity = document.createElement('span');
+    quantity.style.fontSize = `${data.quantityInputSize}px`;
+    quantity.style[data.quantityInputStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.quantityInputStyle;
+    quantity.style.color = data.quantityInputColor;
+    quantity.style.backgroundColor = data.quantityLabelColor;
+    quantity.style.borderRadius = `${data.quantityLabelRadius}px`;
+    quantity.style.padding = `${data.quantityLabelSize}px`;
+    quantity.style.display = 'block';
+    quantity.style.lineHeight = '120%';
+    quantity.style.width = 'fit-content';
+    quantity.textContent = `x ${product.quantity}`;
+
+    titleQuantity.appendChild(productTitle);
+    titleQuantity.appendChild(quantity);
+
+    // Price
+    const price = document.createElement('span');
+    price.style.fontSize = `${data.priceSize}px`;
+    price.style[data.priceStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.priceStyle;
+    price.style.color = data.priceColor;
+    price.textContent = formatMoney(product.price * product.quantity, formatF);
+
+    productInfo.appendChild(titleQuantity);
+    productInfo.appendChild(price);
+    productContent.appendChild(productInfo);
+    productDiv.appendChild(productContent);
+
+    // Add plus sign if not last product
+    if (index < data.products.length - 1) {
+      const plusSign = document.createElement('div');
+      plusSign.style.textAlign = 'center';
+      plusSign.style.margin = '10px 0';
+      plusSign.style.fontSize = '20px';
+      plusSign.style.color = data.titleColor;
+      plusSign.textContent = '+';
+      productDiv.appendChild(plusSign);
+    }
+
+    productsStack.appendChild(productDiv);
+  });
+
+  container.appendChild(productsStack);
+
+  // Total section
+  const totalSection = document.createElement('div');
+  totalSection.style.marginTop = '20px';
+  totalSection.style.padding = '15px';
+  totalSection.style.borderTop = '1px solid #eee';
+  totalSection.style.display = 'flex';
+  totalSection.style.justifyContent = 'space-between';
+  totalSection.style.alignItems = 'center';
+
+  const priceDiv = document.createElement('div');
+
+  // Tag if exists
+  if (data.highlightedTag) {
+    const tag = document.createElement('div');
+    tag.style.backgroundColor = data.tagBackground;
+    tag.style.color = data.tagColor;
+    tag.style.padding = '4px 8px';
+    tag.style.borderRadius = '4px';
+    tag.style.display = 'inline-block';
+    tag.style[data.tagStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.tagStyle;
+    tag.style.fontSize = `${data.tagSize}px`;
+    tag.style.marginBottom = '8px';
+    tag.textContent = data.highlightedTag;
+    priceDiv.appendChild(tag);
+  }
+
+  // Prices
+  const prices = calculateComboPrice(data, data.products);
+  const pricesContainer = document.createElement('div');
+  pricesContainer.style[data.totalPriceStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.totalPriceStyle;
+  pricesContainer.style.fontSize = `${data.totalPriceSize}px`;
+  pricesContainer.style.color = data.totalPriceColor;
+
+  if (data.discountValue) {
+    const originalPrice = document.createElement('span');
+    originalPrice.style.textDecoration = 'line-through';
+    originalPrice.style[data.strikePriceStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.strikePriceStyle;
+    originalPrice.style.color = data.strikePriceColor;
+    originalPrice.style.marginRight = '8px';
+    originalPrice.style.fontSize = `${data.strikePriceSize}px`;
+    originalPrice.textContent = formatMoney(prices.total, formatF);
+    pricesContainer.appendChild(originalPrice);
+  }
+
+  const finalPrice = document.createElement('span');
+  finalPrice.textContent = formatMoney(prices.discounted, formatF);
+  pricesContainer.appendChild(finalPrice);
+
+  priceDiv.appendChild(pricesContainer);
+
+  // Add to cart button
+  const button = document.createElement('button');
+  button.className = 'addToCartBtn';
+  button.style.backgroundColor = data.buttonBackground;
+  button.style.color = data.buttonTextColor;
+  button.style.border = 'none';
+  button.style.padding = '10px 20px';
+  button.style.borderRadius = `${data.buttonBorderRadius}px`;
+  button.style.fontSize = `${data.buttonTextSize}px`;
+  button.textContent = data.callToAction || 'Add to Cart';
+
+  totalSection.appendChild(priceDiv);
+  totalSection.appendChild(button);
+  container.appendChild(totalSection);
+
+  // Footer text if exists
+  if (data.footerText) {
+    const footer = document.createElement('div');
+    footer.style.marginTop = '15px';
+    footer.style.textAlign = 'center';
+    footer.style.color = data.footerTextColor;
+    footer.style[data.footerTextStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.footerTextStyle;
+    footer.style.fontSize = `${data.footerTextSize}px`;
+    footer.textContent = data.footerText;
+    container.appendChild(footer);
+  }
+
+  // Insert into target element
+  const targetElement = document.querySelector(targetSelector);
+  if (targetElement) {
+    targetElement.appendChild(container);
+  }
+}
+
+function ComboBundle() {
+  const base = '{{ shop.url }}';
+  const baseUrl = `${base}/apps/quantityTsting`;
+
+  fetch(baseUrl, {
+    method: 'GET',
+    redirect: 'manual',
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    const combos = data.message.combos;
+    combos.forEach(combo => {
+      if (combo.products.some(product => 
+        product.id.replace('gid://shopify/Product/', '') === '{{ product.id }}'
+      )) {
+        const forms = document.querySelectorAll('form[action="/cart/add"]');
+        if (forms[0]) {
+          const comboContainer = document.createElement('div');
+          comboContainer.id = 'comboDiscount';
+          forms[0].insertBefore(comboContainer, forms[0].firstChild);
+          createComboDiscount(combo, '#comboDiscount');
+        }
+      }
+    });
+  })
+  .catch(error => console.error('Error loading combo discounts:', error));
+}
+
+document.addEventListener("DOMContentLoaded", ComboBundle);
+</script>
+
+{% schema %}
+{
+  "name": "Combo Discount",
+  "target": "body",
+  "templates": ["product"],
+  "settings": [
+    {
+      "type": "textarea",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add your custom CSS here."
+    },
+    {
+      "type": "textarea",
+      "id": "custom_js",
+      "label": "Custom JavaScript",
+      "info": "Add your custom JavaScript here."
+    }
+  ]
+}
+{% endschema %}   

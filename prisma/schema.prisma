@@ -9,8 +9,8 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+   provider = "postgresql"
+   url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -27,6 +27,157 @@ model Session {
   email         String?
   accountOwner  Boolean   @default(false)
   locale        String?
+  volumes       Volume[] 
+  combos        Combo[]
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+}
+
+model Volume {
+  id            String   @id @default(cuid())
+  offerName     String
+  applyTo       String   // "PRODUCTS" or "COLLECTIONS"
+  selections    Json     // Selected products or collections
+  discountType  String   // basic, tiered, bxgy
+  status        String   @default("draft") // draft or published
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+  
+  // Offers Array as JSON
+  offers        Json     // Array of objects containing:
+                        // {
+                        //   discountType: string (percentage, flat, flat-per-item, fixed)
+                        //   discountValue: number
+                        //   quantity: number
+                        //   offerTitle: string
+                        //   discountLabel: string
+                        //   tag: string
+                        //   active: boolean
+                        // }
+
+  // Block Title Settings
+  blockTitle    String?
+  blockTitleSize Int     @default(20)
+  blockTitleStyle String @default("bold")
+  blockTitleColor String @default("#000000")
+  
+  // Offer Title Settings
+  offerTitleSize Int     @default(13)
+  offerTitleStyle String @default("bold")
+  offerTitleColor String @default("#000000")
+  
+  // Discount Label Settings
+  discountLabelSize Int  @default(10)
+  discountLabelStyle String @default("bold")
+  discountLabelColor String @default("#000000")
+  
+  // Price Settings
+  priceTitleSize Int     @default(10)
+  priceTitleStyle String @default("bold")
+  priceTitleColor String @default("#000000")
+  
+  // Compare Price Settings
+  cpriceTitleSize Int    @default(8)
+  cpriceTitleStyle String @default("bold")
+  cpriceTitleColor String @default("#808080")
+  
+  // Tag Settings
+  tagTitleSize Int       @default(10)
+  tagTitleStyle String   @default("bold")
+  tagTitleColor String   @default("#FFFFFF")
+  tagBackgroundColor String @default("#000000")
+  
+  // Footer Settings
+  footerText1   String?
+  footerText2   String?
+  footerTitleSize Int    @default(10)
+  footerTitleStyle String @default("bold")
+  footerTitleColor String @default("#000000")
+  
+  // Option Box Settings
+  optionBorderColor String @default("#000000")
+  optionBackgroundColor String @default("#ffffff")
+  optionNonSelectedBackgroundColor String @default("#ffffff")
+  borderWidth Int         @default(1)
+  borderRadius Int        @default(8)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Combo {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+  
+  // Basic Info
+  offerName     String
+  comboTitle    String?
+  products      Json     // Selected products array
+  
+  // Discount Settings
+  discountType  String   // percentage, fixed, flat
+  discountValue Float
+  
+  // UI Text
+  callToAction  String   @default("Add to Cart")
+  highlightedTag String?
+  footerText    String?
+  
+  // UI Customization
+  titleSize     Int      @default(20)
+  titleStyle    String   @default("normal")
+  titleColor    String   @default("#000000")
+  
+  productTitleSize Int   @default(14)
+  productTitleStyle String @default("normal")
+  productTitleColor String @default("#000000")
+  
+  priceSize     Int      @default(14)
+  priceStyle    String   @default("normal")
+  priceColor    String   @default("#000000")
+  
+  totalPriceSize Int     @default(16)
+  totalPriceStyle String @default("bold")
+  totalPriceColor String @default("#000000")
+  
+  // New fields for strike price
+  strikePriceSize Int    @default(14)
+  strikePriceStyle String @default("normal")
+  strikePriceColor String @default("#999999")
+  
+  // New fields for footer text
+  footerTextSize Int     @default(12)
+  footerTextStyle String @default("normal")
+  footerTextColor String @default("#666666")
+  
+  tagSize       Int      @default(12)
+  tagStyle      String   @default("normal")
+  tagColor      String   @default("#FFFFFF")
+  tagBackground String   @default("#000000")
+  
+  buttonTextSize Int     @default(14)
+  buttonTextColor String @default("#FFFFFF")
+  buttonBackground String @default("#000000")
+  buttonBorderRadius Int @default(4)
+  
+  productSpacing Int     @default(15)
+  containerPadding Int   @default(20)
+  containerBackground String @default("#FFFFFF")
+  containerBorderRadius Int @default(8)
+  
+  status        String   @default("draft")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Quantity Input Styling
+  quantityInputSize Int    @default(14)
+  quantityInputStyle String @default("normal")
+  quantityInputColor String @default("#000000")
+  quantityLabelSize Int    @default(4)
+  quantityLabelRadius Int    @default(4)
+  quantityLabelColor String @default("#666666")
+
+  @@index([sessionId])
 }

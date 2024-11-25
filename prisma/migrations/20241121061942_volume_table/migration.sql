@@ -1,0 +1,48 @@
+-- CreateTable
+CREATE TABLE "Volume" (
+    "id" TEXT NOT NULL,
+    "offerName" TEXT NOT NULL,
+    "applyTo" TEXT NOT NULL,
+    "selections" JSONB NOT NULL,
+    "discountType" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "sessionId" TEXT NOT NULL,
+    "offers" JSONB NOT NULL,
+    "blockTitle" TEXT,
+    "blockTitleSize" INTEGER NOT NULL DEFAULT 20,
+    "blockTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "blockTitleColor" TEXT NOT NULL DEFAULT '#000000',
+    "offerTitleSize" INTEGER NOT NULL DEFAULT 13,
+    "offerTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "offerTitleColor" TEXT NOT NULL DEFAULT '#000000',
+    "discountLabelSize" INTEGER NOT NULL DEFAULT 10,
+    "discountLabelStyle" TEXT NOT NULL DEFAULT 'bold',
+    "discountLabelColor" TEXT NOT NULL DEFAULT '#000000',
+    "priceTitleSize" INTEGER NOT NULL DEFAULT 10,
+    "priceTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "priceTitleColor" TEXT NOT NULL DEFAULT '#000000',
+    "cpriceTitleSize" INTEGER NOT NULL DEFAULT 8,
+    "cpriceTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "cpriceTitleColor" TEXT NOT NULL DEFAULT '#808080',
+    "tagTitleSize" INTEGER NOT NULL DEFAULT 10,
+    "tagTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "tagTitleColor" TEXT NOT NULL DEFAULT '#FFFFFF',
+    "tagBackgroundColor" TEXT NOT NULL DEFAULT '#000000',
+    "footerText1" TEXT,
+    "footerText2" TEXT,
+    "footerTitleSize" INTEGER NOT NULL DEFAULT 10,
+    "footerTitleStyle" TEXT NOT NULL DEFAULT 'bold',
+    "footerTitleColor" TEXT NOT NULL DEFAULT '#000000',
+    "optionBorderColor" TEXT NOT NULL DEFAULT '#000000',
+    "optionBackgroundColor" TEXT NOT NULL DEFAULT '#ffffff',
+    "optionNonSelectedBackgroundColor" TEXT NOT NULL DEFAULT '#ffffff',
+    "borderWidth" INTEGER NOT NULL DEFAULT 1,
+    "borderRadius" INTEGER NOT NULL DEFAULT 8,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Volume_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "Volume" ADD CONSTRAINT "Volume_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

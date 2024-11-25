@@ -1,0 +1,381 @@
+<style>
+  .volumeDiscountOffer{
+    cursor: pointer;
+    transition: all 0.4s ease;
+  }
+</style>
+<script>
+var curr = {{ shop.currency | json }};
+  var formatF = {{ shop.money_format | json }};
+
+  function formatMoney(cents, format) {
+  if (typeof cents === 'string') cents = cents.replace('.', '');
+  var value = '';
+  var placeholderRegex = /\{\{\s*(\w+)\s*\}\}/;
+  var formatString = format || formatF;
+
+  function defaultOption(opt, def) {
+    return (typeof opt == 'undefined' ? def : opt);
+  }
+
+  function formatWithDelimiters(number, precision, thousands, decimal) {
+    precision = defaultOption(precision, 2);
+    thousands = defaultOption(thousands, ',');
+    decimal = defaultOption(decimal, '.');
+
+    if (isNaN(number) || number == null) { return 0; }
+
+    number = (number/100.0).toFixed(precision);
+
+    var parts = number.split('.'),
+        dollars = parts[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1' + thousands),
+        cents = parts[1] ? (decimal + parts[1]) : '';
+
+    return dollars + cents;
+  }
+
+  switch(formatString.match(placeholderRegex)[1]) {
+    case 'amount':
+      value = formatWithDelimiters(cents, 2);
+      break;
+    case 'amount_no_decimals':
+      value = formatWithDelimiters(cents, 0);
+      break;
+    case 'amount_with_comma_separator':
+      value = formatWithDelimiters(cents, 2, '.', ',');
+      break;
+    case 'amount_no_decimals_with_comma_separator':
+      value = formatWithDelimiters(cents, 0, '.', ',');
+      break;
+  }
+
+  return formatString.replace(placeholderRegex, value);
+}
+
+  function OptionsBundle() {
+    const base = '{{ shop.url }}'
+    const baseUrl = `${base}/apps/quantityTsting`;
+
+
+
+    fetch(baseUrl,{
+      method:'GET',
+      redirect: 'manual',
+      headers:{
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+      }).then(res => res.json()).then(x =>{
+        const result = x.message.volumes;
+       
+      result.map((volume)=>{
+        
+        volume.selections.map((selection)=>{
+          if(selection.id.replace('gid://shopify/Product/','') === '{{ product.id }}'){
+            const forms = document.querySelectorAll('form[action="/cart/add"]');
+            const firstForm = forms[0];
+            if (firstForm) {
+              // Add optionsBundle to only the first form
+              const bundleOptions = document.createElement('div');
+              bundleOptions.id = 'volumeDiscount';
+              bundleOptions.className = 'options-bundle-products';
+              firstForm.insertBefore(bundleOptions, firstForm.firstChild);
+            }
+  
+          }
+
+        })
+       
+      })
+      return result;
+    }).then((result)=>{
+        result.map((volume)=>{
+          volume.selections.map((selection)=>{
+            if(selection.id.replace('gid://shopify/Product/','') === '{{ product.id }}'){
+              function createVolumeDiscount(data, targetSelector) {
+  // Helper function to calculate discounted price
+  function calculateDiscountedPrice(offer, originalPrice) {
+    const basePrice = offer.quantity * originalPrice;
+    
+    switch (offer.discountType) {
+      case 'percentage':
+        return basePrice - (basePrice * (parseFloat(offer.discountValue) / 100));
+      case 'flat':
+        return basePrice - parseFloat(offer.discountValue);
+      case 'flat-per-item':
+        return basePrice - (parseFloat(offer.discountValue) * offer.quantity);
+      case 'fixed':
+        return parseFloat(offer.discountValue) * offer.quantity;
+      default:
+        return basePrice;
+    }
+  }
+
+  // Create main container
+  const container = document.createElement('div');
+  container.style.backgroundColor = 'transparent';
+  container.style.padding = '20px 0 0 0';
+
+  // Add block title
+  const title = document.createElement('span');
+  title.style.color = data.blockTitleColor;
+  if(data.blockTitleStyle === 'italic'){
+  title.style.fontStyle = data.blockTitleStyle;
+  }
+  else{
+    title.style.fontWeight = data.blockTitleStyle;
+  }
+  title.style.textAlign = 'center';
+  title.style.display = 'block';
+  title.style.marginBottom = '20px';
+  title.style.fontSize = `${data.blockTitleSize}px`;
+  title.textContent = data.blockTitle || 'Bundle & Save';
+  container.appendChild(title);
+
+  // Create offers container
+  const offersContainer = document.createElement('div');
+  offersContainer.style.display = 'flex';
+  offersContainer.style.flexDirection = 'column';
+  offersContainer.style.gap = '15px';
+
+  // Add offers
+  data.offers.forEach(offer => {
+    const offerDiv = document.createElement('div');
+    offerDiv.style.display = 'flex';
+    offerDiv.className = "volumeDiscountOffer"
+    offerDiv.style.alignItems = 'center';
+    offerDiv.style.padding = '15px';
+    offerDiv.style.border = `${data.borderWidth}px solid ${offer.active ? data.optionBorderColor : '#ddd'}`;
+    offerDiv.style.borderRadius = `${data.borderRadius}px`;
+    offerDiv.style.position = 'relative';
+    offerDiv.style.backgroundColor = offer.active ? data.optionBackgroundColor : data.optionNonSelectedBackgroundColor;
+
+    // Add radio button
+    const radio = document.createElement('div');
+    radio.style.width = '17px';
+    radio.style.height = '15px';
+    radio.className = "volumeDiscountRadio"
+    radio.style.borderRadius = '50%';
+    radio.style.border = `2px solid ${offer.active ? data.optionBorderColor : 'grey'}`;
+    radio.style.marginRight = '15px';
+    radio.style.display = 'flex';
+    radio.style.alignItems = 'center';
+    radio.style.justifyContent = 'center';
+
+    const radioInner = document.createElement('div');
+    radioInner.style.width = '7px';
+    radioInner.style.height = '7px';
+    radioInner.className = "volumeDiscountRadioInner"
+    radioInner.style.borderRadius = '50%';
+    radioInner.style.display = 'block';
+    radioInner.style.backgroundColor = offer.active ? data.optionBorderColor : 'transparent';
+    radio.appendChild(radioInner);
+    offerDiv.appendChild(radio);
+
+    // Add offer content
+    const content = document.createElement('div');
+    content.style.display = 'flex';
+    content.style.alignItems = 'center';
+    content.style.justifyContent = 'space-between';
+    content.style.width = '100%';
+
+    // Left side (title and prices)
+    const leftSide = document.createElement('span');
+    leftSide.style.display = 'flex';
+    leftSide.style.flexDirection = 'column';
+    leftSide.style.fontSize = `${data.offerTitleSize}px`;
+    leftSide.style.color = data.offerTitleColor;
+    if(data.offerTitleStyle === 'italic'){
+      leftSide.style.fontStyle = data.offerTitleStyle;
+    }
+    else{
+      leftSide.style.fontWeight = data.offerTitleStyle;
+    }
+
+    leftSide.innerHTML = `
+      ${offer.offerTitle || `Buy ${offer.quantity}`}<br/>
+      <span style="font-size: ${data.priceTitleSize}px; color: ${data.priceTitleColor}; font-style: ${data.priceTitleStyle}; line-height: 120%">
+        ${formatMoney(calculateDiscountedPrice(offer, {{ product.variants[0].price }}) > 0 ? calculateDiscountedPrice(offer, {{ product.variants[0].price }}) : {{ product.variants[0].price }}, {{ shop.money_format | json }})}
+      </span>
+      ${offer.discountValue && offer.discountValue > 0 ? `
+        <span style="font-size: ${data.cpriceTitleSize}px; color: ${data.cpriceTitleColor}; font-style: ${data.cpriceTitleStyle}; line-height: 120%; text-decoration: line-through">
+        ${formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * {{ product.variants[0].price }} : {{ product.variants[0].price }}, {{ shop.money_format | json }})}
+        </span>
+      ` : ''}
+    `;
+
+    // Right side (tag and discount label)
+    const rightSide = document.createElement('div');
+    rightSide.style.display = 'flex';
+    rightSide.style.flexDirection = 'column';
+    rightSide.style.alignItems = 'center';
+
+    if (offer.tag) {
+      const tag = document.createElement('div');
+      tag.style.backgroundColor = data.tagBackgroundColor;
+      tag.style.color = data.tagTitleColor;
+      tag.style.padding = '2px 4px';
+      tag.style.lineHeight = '10px';
+      tag.style.borderRadius = '4px';
+      tag.style.fontSize = `${data.tagTitleSize}px`;
+      if(data.tagTitleStyle === 'italic'){
+        tag.style.fontStyle = data.tagTitleStyle;
+      }
+      else{
+        tag.style.fontWeight = data.tagTitleStyle;
+      }
+      tag.textContent = offer.tag;
+      rightSide.appendChild(tag);
+    }
+
+    if (offer.discountLabel) {
+      const discountLabel = document.createElement('span');
+      discountLabel.style.fontSize = `${data.discountLabelSize}px`;
+      discountLabel.style.color = data.discountLabelColor;
+      if(data.discountLabelStyle === 'italic'){
+        discountLabel.style.fontStyle = data.discountLabelStyle;
+      }
+      else{
+        discountLabel.style.fontWeight = data.discountLabelStyle;
+      }
+      discountLabel.textContent = offer.discountLabel;
+      rightSide.appendChild(discountLabel);
+    }
+
+    content.appendChild(leftSide);
+    content.appendChild(rightSide);
+    offerDiv.appendChild(content);
+    offersContainer.appendChild(offerDiv);
+  });
+
+  container.appendChild(offersContainer);
+
+  // Add footer if exists
+  if (data.footerText1 || data.footerText2) {
+    const footer = document.createElement('div');
+    footer.style.marginTop = '20px';
+    footer.style.textAlign = 'center';
+    footer.style.display = 'flex';
+    footer.style.alignItems = 'center';
+    footer.style.justifyContent = 'space-between';
+
+    if (data.footerText1) {
+      const footerText1 = document.createElement('span');
+      footerText1.style.fontSize = `${data.footerTitleSize}px`;
+      footerText1.style.color = data.footerTitleColor;
+      if(data.footerTitleStyle === 'italic'){
+        footerText1.style.fontStyle = data.footerTitleStyle;
+      }
+      else{
+        footerText1.style.fontWeight = data.footerTitleStyle;
+      }
+      footerText1.textContent = data.footerText1;
+      footer.appendChild(footerText1);
+    }
+
+    if (data.footerText2) {
+      const footerText2 = document.createElement('span');
+      footerText2.style.fontSize = `${data.footerTitleSize}px`;
+      footerText2.style.color = data.footerTitleColor;
+      if(data.footerTitleStyle === 'italic'){
+        footerText2.style.fontStyle = data.footerTitleStyle;
+      }
+      else{
+        footerText2.style.fontWeight = data.footerTitleStyle;
+      }
+      footerText2.textContent = `${data.footerText2} ${formatMoney(data.offers[0].quantity * {{ product.variants[0].price }}, {{ shop.money_format | json }})}`;
+      footer.appendChild(footerText2);
+    }
+
+    container.appendChild(footer);
+  }
+
+  // Insert into target element
+  const targetElement = document.querySelector(targetSelector);
+  if (targetElement) {
+    targetElement.appendChild(container);
+  }
+}
+
+
+createVolumeDiscount(volume, '#volumeDiscount');
+            }
+          });
+        });
+return result;
+      }).then((result)=>{
+        result.map((volume)=>{
+          volume.selections.map((selection)=>{
+            if(selection.id.replace('gid://shopify/Product/','') === '{{ product.id }}'){
+              document.querySelectorAll('.volumeDiscountOffer').forEach((e)=>{
+                e.addEventListener('click',()=>{
+                  document.querySelectorAll('.volumeDiscountOffer').forEach((f)=>{
+                  f.style.border =`${volume.borderWidth}px solid #ddd`;
+                  f.style.backgroundColor = volume.optionNonSelectedBackgroundColor;
+                  f.querySelector('.volumeDiscountRadio').style.border =`2px solid grey`;
+                  f.querySelector('.volumeDiscountRadioInner').style.backgroundColor =`transparent`;
+                })
+                  e.style.border = `${volume.borderWidth}px solid ${volume.optionBorderColor}`;
+                  e.style.backgroundColor = volume.optionBackgroundColor;
+                  e.querySelector('.volumeDiscountRadio').style.border = `2px solid ${volume.optionBorderColor}`;
+                  e.querySelector('.volumeDiscountRadioInner').style.backgroundColor = `${volume.optionBorderColor}`;
+                });
+            });
+            }
+          });
+        });
+      });
+  }
+
+document.addEventListener("DOMContentLoaded", OptionsBundle);
+</script>
+
+{% if section.settings.custom_css != blank %}
+  <style type="text/css">
+      {{ section.settings.custom_css }}
+  </style>
+  {% endif %}
+
+  {% if section.settings.custom_js != blank %}
+  <script type="text/javascript">
+      {{ section.settings.custom_js }}
+  </script>
+  {% endif %}
+
+{% schema %}
+    {
+      "name": "Infinite Bundle",
+      "target": "body",
+      "templates": ["product"],
+      "settings": [
+        {
+          "type": "select",
+          "id": "option_display",
+          "label": "Option Display Style",
+          "options": [
+            {
+              "value": "dropdown",
+              "label": "Dropdown"
+            },
+            {
+              "value": "pills",
+              "label": "Pills"
+            }
+          ],
+          "default": "dropdown"
+        },
+        {
+      "type": "textarea",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add your custom CSS here."
+    },
+    {
+      "type": "textarea",
+      "id": "custom_js",
+      "label": "Custom JavaScript",
+      "info": "Add your custom JavaScript here."
+    }
+      ]
+    }
+{% endschema %}
