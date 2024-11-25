@@ -19,24 +19,35 @@ import {
   Select,
   RangeSlider
 } from "@shopify/polaris";
+import { DeleteIcon, XIcon,CheckIcon } from "@shopify/polaris-icons";
+import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import {  useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useNavigate,useLoaderData,useActionData,useSubmit } from "@remix-run/react";
-import { CheckIcon, DeleteIcon, XIcon } from "@shopify/polaris-icons";
-import { fetchShopInfo } from "../server/fetchShopInfo.server";
-import prisma from "../db.server";
 import { json } from "@remix-run/node";
+import prisma from "../db.server";
 
-export const loader = async ({ request }) => {
+export const loader = async ({ request, params }) => {
   await authenticate.admin(request);
+  
+  const { id } = params;
+  const volume = await prisma.volume.findUnique({
+    where: { id }
+  });
+
+  if (!volume) {
+    throw new Response("Not Found", { status: 404 });
+  }
+  console.log("volume: ",volume);
   const shopInfo = await fetchShopInfo(request);
-  return shopInfo.data.shop.currencyFormats.moneyFormat;
+  return json({ volume: volume, currencyFormat: shopInfo.data.shop.currencyFormats.moneyFormat  });
 };
 
-export const action = async ({ request }) => {
+export const action = async ({ request,params }) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  console.log("Form Data: ",JSON.parse(formData.get('formData')));
+  console.log("Form Data Found: ",JSON.parse(formData.get('formData')));
+  const { id } = params;
   
 
   if (request.method !== "POST") {
@@ -46,7 +57,8 @@ export const action = async ({ request }) => {
   try {
     const data = JSON.parse(formData.get('formData'));
 
-    const volume = await prisma.volume.create({
+    const volume = await prisma.volume.update({
+      where: { id },
       data: {
         sessionId: session.id,  // Link to the current session
         offerName: data.offerName,
@@ -96,64 +108,58 @@ export const action = async ({ request }) => {
   }
 };
 
-export default function VolumeDiscount() {
+export default function EditVolumeDiscount() {
   const navigate = useNavigate();
   const action = useActionData();
   const app = useAppBridge();
   const submit = useSubmit();
-  const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const data = useLoaderData();
+  const prevForm = data.volume;
+  const currencyFormat = data.currencyFormat;
   const [formData, setFormData] = useState({
-    offerName: "",
-    applyTo: "PRODUCTS",
-    selections: [],
-    discountType: "tiered",
-    status: "draft",
-    offers: [{
-      discountType: 'percentage',
-      discountValue: '',
-      quantity: '1',
-      offerTitle: '',
-      discountLabel: '',
-      tag: '',
-      active: true
-    }],
-    blockTitle: '',
-    footerText1: '',
-    footerText2: '',
-    blockTitleSize: 20,
-    blockTitleStyle: 'normal',
-    blockTitleColor: '#000000',
-    offerTitleSize: 13,
-    offerTitleStyle: 'normal',
-    offerTitleColor: '#000000',
-    discountLabelSize: 10,
-    discountLabelStyle: 'normal',
-    discountLabelColor: '#000000',
-    priceTitleSize: 10,
-    priceTitleStyle: 'normal',
-    priceTitleColor: '#000000',
-    cpriceTitleSize: 8,
-    cpriceTitleStyle: 'normal',
-    cpriceTitleColor: '#808080',
-    tagTitleSize: 10,
-    tagTitleStyle: 'normal',
-    tagTitleColor: '#FFFFFF',
-    tagBackgroundColor: '#000000',
-    footerTitleSize: 10,
-    footerTitleStyle: 'normal',
-    footerTitleColor: '#000000',
-    optionBorderColor: '#000000',
-    optionBackgroundColor: '#ffffff',
-    optionNonSelectedBackgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderRadius: 8
+    offerName: prevForm?.offerName,
+    applyTo: prevForm?.applyTo,
+    selections: prevForm?.selections,
+    discountType: prevForm?.discountType,
+    status: prevForm?.status,
+    offers: prevForm?.offers,
+    blockTitle: prevForm?.blockTitle,
+    footerText1: prevForm?.footerText1,
+    footerText2: prevForm?.footerText2,
+    blockTitleSize: prevForm?.blockTitleSize,
+    blockTitleStyle: prevForm?.blockTitleStyle,
+    blockTitleColor: prevForm?.blockTitleColor,
+    offerTitleSize: prevForm?.offerTitleSize,
+    offerTitleStyle: prevForm?.offerTitleStyle,
+    offerTitleColor: prevForm?.offerTitleColor,
+    discountLabelSize: prevForm?.discountLabelSize,
+    discountLabelStyle: prevForm?.discountLabelStyle,
+    discountLabelColor: prevForm?.discountLabelColor,
+    priceTitleSize: prevForm?.priceTitleSize,
+    priceTitleStyle: prevForm?.priceTitleStyle,
+    priceTitleColor: prevForm?.priceTitleColor,
+    cpriceTitleSize: prevForm?.cpriceTitleSize,
+    cpriceTitleStyle: prevForm?.cpriceTitleStyle,
+    cpriceTitleColor: prevForm?.cpriceTitleColor,
+    tagTitleSize: prevForm?.tagTitleSize,
+    tagTitleStyle: prevForm?.tagTitleStyle,
+    tagTitleColor: prevForm?.tagTitleColor,
+    tagBackgroundColor: prevForm?.tagBackgroundColor,
+    footerTitleSize: prevForm?.footerTitleSize,
+    footerTitleStyle: prevForm?.footerTitleStyle,
+    footerTitleColor: prevForm?.footerTitleColor,
+    optionBorderColor: prevForm?.optionBorderColor,
+    optionBackgroundColor: prevForm?.optionBackgroundColor,
+    optionNonSelectedBackgroundColor: prevForm?.optionNonSelectedBackgroundColor,
+    borderWidth: prevForm?.borderWidth,
+    borderRadius: prevForm?.borderRadius
   });
-  const currencyFormat = useLoaderData();
+  
   const currencySymbol = currencyFormat.split('{{')[0].trim();
   useEffect(() => {
     if (action?.success) {
-      app.toast.show("Discount Created Successfully");
+      app.toast.show("Discount Updated Successfully");
       setIsLoading(false);
     } else if (!action?.success) {
       setIsLoading(false);
@@ -260,14 +266,15 @@ export default function VolumeDiscount() {
   // Handler for saving/publishing
   const handleSave = async (status) => {
     const formDataToSend = new FormData();
-    console.log("formData: ",formData);
-    formDataToSend.append("formData", JSON.stringify(formData));
+    console.log("formData: ",JSON.stringify(formData));
+    formDataToSend.append("formData",JSON.stringify(formData));
     console.log("formDataToSend: ",formDataToSend);
     setIsLoading(true);
     submit(formDataToSend, {
       method: "post",
       encType: "multipart/form-data",
     });
+    console.log("formDataToSend: ",formDataToSend);
   };
 
 
@@ -306,9 +313,11 @@ export default function VolumeDiscount() {
     }));
   };
 
-  const renderStep1 = () => (
+
+  const renderStep3 = () => (
     <Layout>
-      <Layout.Section>
+     <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}} className="layoutGrid">
+        <BlockStack gap="500">
         <Card>
           <BlockStack gap="500">
             <FormLayout>
@@ -439,26 +448,10 @@ export default function VolumeDiscount() {
                 )}
               </BlockStack>
             </FormLayout>
-
-            <Button
-            variant='primary'
-              onClick={() => setStep(2)}
-              disabled={!formData.offerName || formData.selections.length === 0}
-            >
-              Next
-            </Button>
           </BlockStack>
         </Card>
-      </Layout.Section>
-    </Layout>
-  );
-
-  const renderStep2 = () => (
-    <Layout>
-      <Layout.Section>
-        <Card>
-          <BlockStack gap="500">
-            <Text variant="headingMd" as="h2">Select Discount Type</Text>
+          <Card>
+          <Text variant="headingMd" as="h2">Select Discount Type</Text>
             
             <Grid gap="400">
               {discountTypes.map((type) => (
@@ -488,27 +481,7 @@ export default function VolumeDiscount() {
                 </Grid.Cell>
               ))}
             </Grid>
-
-            <div style={{ display: "flex", gap: "10px" }}>
-              <Button onClick={() => setStep(1)}>Back</Button>
-              <Button
-                variant='primary'
-                onClick={() => setStep(3)}
-                disabled={!formData.discountType}
-              >
-                Next
-              </Button>
-            </div>
-          </BlockStack>
-        </Card>
-      </Layout.Section>
-    </Layout>
-  );
-
-  const renderStep3 = () => (
-    <Layout>
-     <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}} className="layoutGrid">
-        <BlockStack gap="500">
+          </Card>
           {/* Offers Section */}
           <Card>
             <BlockStack gap="400">
@@ -1075,7 +1048,7 @@ export default function VolumeDiscount() {
                     
                     <span style={{ display: 'flex', flexDirection: 'column', fontSize: `${formData.offerTitleSize}px`, color: formData.offerTitleColor, [formData.offerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.offerTitleStyle }}>
                       {offer.offerTitle || `Buy ${offer.quantity}`}<br/>
-                      <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData.selections[0].price) > 0 ? calculateDiscountedPrice(offer,formData.selections[0].price).toFixed(2) : formData.selections[0].price}</span>
+                      <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData.selections[0].price) > 0 ? calculateDiscountedPrice(offer,formData.selections[0].price).toFixed(2) : formData.selections[0].price.toFixed(2)}</span>
                       {offer.discountValue && offer.discountValue > 0 && (
                         <span 
                           style={{ 
@@ -1089,7 +1062,7 @@ export default function VolumeDiscount() {
                           {currencySymbol}
                           {offer.quantity*formData.selections[0].price > 0 
                             ? (offer.quantity*formData.selections[0].price).toFixed(2) 
-                            : formData.selections[0].price}
+                            : formData.selections[0].price.toFixed(2)}
                         </span>
                       )}
                     </span>
@@ -1152,19 +1125,17 @@ export default function VolumeDiscount() {
     <BlockStack gap="800">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Text variant="heading3xl" as="h2">
-                Create Volume Discount
+                Update '{formData.offerName}''
             </Text>
-            {step === 3 &&
+          
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <Button  onClick={() => setStep(2)}>Back</Button>
+                <Button  onClick={() => {navigate(`/app`)}}>Back</Button>
                 <Button  loading={isLoading} onClick={() => handleSave('draft')}>Save as Draft</Button>
-                <Button loading={isLoading} variant="primary" onClick={() => handleSave('published')}>Publish</Button>
+                <Button loading={isLoading} variant="primary" onClick={() => handleSave('published')}>Update</Button>
             </div>
-            }
+            
         </div>
-      {step === 1 && renderStep1()}
-      {step === 2 && renderStep2()}
-      {step === 3 && renderStep3()}
+      {renderStep3()}
       </BlockStack>
     </Page>
   );

@@ -155,7 +155,7 @@ export default function Index() {
       {discount.offerName}
     </Text>,
     <Badge tone={discount.status === 'published' ? 'success' : 'attention'}>
-      {discount.status === 'published' ? 'Publish' : 'Draft'}
+      {discount.status === 'published' ? 'Published' : 'Draft'}
     </Badge>,
     <Text variant="bodyMd" as="span">
       {discount.type === 'volume' ? 'Volume Discount' : 'Combo Discount'}
@@ -173,7 +173,7 @@ export default function Index() {
         {discount.status === 'published' ? 'Draft' : 'Publish'}
       </Button>
       <Button
-        onClick={() => navigate(`/app/${discount.type}-discount/${discount.id}`)}
+        onClick={() => navigate(`/app/${discount.type}/${discount.id}`)}
       >
         Edit
       </Button>
@@ -208,7 +208,7 @@ export default function Index() {
                   content: "Create Discount",
                   onAction: () => navigate("/app/create-discount")
                 }}
-                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               >
                 <p>Choose between Volume Discounts or Combo Discounts to boost your sales.</p>
               </EmptyState>
