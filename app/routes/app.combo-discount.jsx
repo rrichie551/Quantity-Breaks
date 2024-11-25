@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  Page, Layout, Card, Text, BlockStack, Grid, Button,
+  Page, Spinner, Card, Text, BlockStack, Grid, Button,
   TextField, Select, RangeSlider, Avatar
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useNavigate, useLoaderData, useActionData, useSubmit } from "@remix-run/react";
+import { useNavigate, useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
@@ -117,6 +117,7 @@ export default function ComboDiscount() {
   const [isLoading, setIsLoading] = useState(false);
   const currencyFormat = useLoaderData();
   const currencySymbol = currencyFormat.split('{{')[0].trim();
+  const navigation = useNavigation();
 
   // Initial form state
   const [formData, setFormData] = useState({
@@ -275,22 +276,33 @@ export default function ComboDiscount() {
     }
   }, [action, app]);
 
-  return (
-    <Page>
-      <BlockStack gap="800">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Text variant="heading3xl" as="h2">
-            Create Combo Discount
-          </Text>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <Button loading={isLoading} onClick={() => handleSave('draft')}>Save as Draft</Button>
-            <Button loading={isLoading} variant="primary" onClick={() => handleSave('published')}>
-              Publish
-            </Button>
-          </div>
-        </div>
+  if (navigation.state === "loading") {
+    return (
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
+        <Spinner accessibilityLabel="Loading" size="large" />
+      </div>
+    );
+  }
 
-        <Layout>
+  return (
+    <Page
+    backAction={{
+      content: "Discounts",
+      onAction: () => navigate("/app")
+    }}
+    title="Create Combo Discount"
+    primaryAction={{content: 'Publish', onAction: () => handleSave('published')}}
+    secondaryActions={[
+      {
+        content: 'Save as Draft',
+        onAction: () => handleSave('draft')
+      }
+    ]}
+    >
+      <BlockStack gap="800">
+       
+
+       
         <div style={{display:'grid', gridTemplateColumns:'2fr 2fr', gap:'20px'}} className="layoutGrid">
         
             {/* Form Fields */}
@@ -1131,7 +1143,7 @@ export default function ComboDiscount() {
             </div>
          
           </div>
-        </Layout>
+      
       </BlockStack>
     </Page>
   );

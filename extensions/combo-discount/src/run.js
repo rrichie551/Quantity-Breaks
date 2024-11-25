@@ -1,5 +1,4 @@
 // @ts-check
-import { DiscountApplicationStrategy } from "../generated/api";
 
 /**
  * @typedef {import("../generated/api").RunInput} RunInput
@@ -9,9 +8,8 @@ import { DiscountApplicationStrategy } from "../generated/api";
 /**
  * @type {FunctionRunResult}
  */
-const EMPTY_DISCOUNT = {
-  discountApplicationStrategy: DiscountApplicationStrategy.First,
-  discounts: [],
+const NO_CHANGES = {
+  operations: [],
 };
 
 /**
@@ -19,9 +17,5 @@ const EMPTY_DISCOUNT = {
  * @returns {FunctionRunResult}
  */
 export function run(input) {
-  const configuration = JSON.parse(
-    input?.discountNode?.metafield?.value ?? "{}"
-  );
-
-  return EMPTY_DISCOUNT;
+  return NO_CHANGES;
 };

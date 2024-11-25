@@ -1,7 +1,5 @@
-import { Page, Layout, Card, BlockStack, Text, Button, Icon, Grid } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
-import { MeasurementVolumeIcon, DomainFilledIcon } from "@shopify/polaris-icons";
-import { useNavigate } from "@remix-run/react";
+import { Page, Layout, Card, BlockStack, Text, Button, Spinner, Grid } from "@shopify/polaris";
+import { useNavigate, useNavigation } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
@@ -11,6 +9,14 @@ export const loader = async ({ request }) => {
 
 export default function CreateDiscount() {
   const navigate = useNavigate();
+  const navigation = useNavigation();
+  if (navigation.state === "loading") {
+    return (
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
+        <Spinner accessibilityLabel="Loading" size="large" />
+      </div>
+    );
+  }
 
   return (
     <Page
@@ -18,13 +24,13 @@ export default function CreateDiscount() {
         content: "Discounts",
         onAction: () => navigate("/app")
       }}
+      title="Choose Discount Type"
     >
-      <TitleBar title="Create Discount" />
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
             <Text variant="headingLg" as="h2">
-              Choose Discount Type
+             
             </Text>
             
             <Grid>

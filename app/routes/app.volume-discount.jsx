@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Page,
-  Layout,
   Card,
   FormLayout,
   TextField,
@@ -17,11 +16,12 @@ import {
   ResourceList,
   InlineStack,
   Select,
+  Spinner,
   RangeSlider
 } from "@shopify/polaris";
 import {  useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useNavigate,useLoaderData,useActionData,useSubmit } from "@remix-run/react";
+import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from "@remix-run/react";
 import { CheckIcon, DeleteIcon, XIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import prisma from "../db.server";
@@ -151,6 +151,7 @@ export default function VolumeDiscount() {
   });
   const currencyFormat = useLoaderData();
   const currencySymbol = currencyFormat.split('{{')[0].trim();
+  const navigation = useNavigation();
   useEffect(() => {
     if (action?.success) {
       app.toast.show("Discount Created Successfully");
@@ -307,8 +308,6 @@ export default function VolumeDiscount() {
   };
 
   const renderStep1 = () => (
-    <Layout>
-      <Layout.Section>
         <Card>
           <BlockStack gap="500">
             <FormLayout>
@@ -439,27 +438,15 @@ export default function VolumeDiscount() {
                 )}
               </BlockStack>
             </FormLayout>
-
-            <Button
-            variant='primary'
-              onClick={() => setStep(2)}
-              disabled={!formData.offerName || formData.selections.length === 0}
-            >
-              Next
-            </Button>
           </BlockStack>
         </Card>
-      </Layout.Section>
-    </Layout>
   );
 
   const renderStep2 = () => (
-    <Layout>
-      <Layout.Section>
+   
         <Card>
           <BlockStack gap="500">
             <Text variant="headingMd" as="h2">Select Discount Type</Text>
-            
             <Grid gap="400">
               {discountTypes.map((type) => (
                 <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }} key={type.id}>
@@ -488,25 +475,12 @@ export default function VolumeDiscount() {
                 </Grid.Cell>
               ))}
             </Grid>
-
-            <div style={{ display: "flex", gap: "10px" }}>
-              <Button onClick={() => setStep(1)}>Back</Button>
-              <Button
-                variant='primary'
-                onClick={() => setStep(3)}
-                disabled={!formData.discountType}
-              >
-                Next
-              </Button>
-            </div>
           </BlockStack>
         </Card>
-      </Layout.Section>
-    </Layout>
   );
 
   const renderStep3 = () => (
-    <Layout>
+   
      <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}} className="layoutGrid">
         <BlockStack gap="500">
           {/* Offers Section */}
@@ -1144,24 +1118,54 @@ export default function VolumeDiscount() {
         </Card>
       </div>
       </div>
-    </Layout>
   );
-
+  if (navigation.state === "loading") {
+    return (
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
+        <Spinner accessibilityLabel="Loading" size="large" />
+      </div>
+    );
+  }
   return (
-    <Page>
+    <Page
+  backAction={{
+    content: "Discounts",
+    onAction: () => navigate("/app")
+  }}
+  title="Create Volume Discount"
+  primaryAction={
+    step === 1 ? {
+      content: 'Next',
+      disabled: !formData.offerName || formData.selections.length === 0,
+      onAction: () => setStep(2)
+    } : step === 2 ? {
+      content: 'Next',
+      onAction: () => setStep(3)
+    } : {
+      content: 'Publish',
+      onAction: () => handleSave('published')
+    }
+  }
+  secondaryActions={
+    step === 1 ? [] : 
+    step === 2 ? [
+      {
+        content: 'Back',
+        onAction: () => setStep(1)
+      }
+    ] : [
+      {
+        content: 'Save as Draft',
+        onAction: () => handleSave('draft')
+      },
+      {
+        content: 'Back',
+        onAction: () => setStep(2)
+      }
+    ]
+  }
+>
     <BlockStack gap="800">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Text variant="heading3xl" as="h2">
-                Create Volume Discount
-            </Text>
-            {step === 3 &&
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <Button  onClick={() => setStep(2)}>Back</Button>
-                <Button  loading={isLoading} onClick={() => handleSave('draft')}>Save as Draft</Button>
-                <Button loading={isLoading} variant="primary" onClick={() => handleSave('published')}>Publish</Button>
-            </div>
-            }
-        </div>
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}

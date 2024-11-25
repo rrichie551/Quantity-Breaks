@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Page,
-  Layout,
   Card,
   FormLayout,
   TextField,
   RadioButton,
   Button,
+  Spinner,
   Text,
   BlockStack,
   Box,
@@ -23,7 +23,7 @@ import { DeleteIcon, XIcon,CheckIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import {  useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useNavigate,useLoaderData,useActionData,useSubmit } from "@remix-run/react";
+import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 
@@ -116,6 +116,7 @@ export default function EditVolumeDiscount() {
   const [isLoading, setIsLoading] = useState(false);
   const data = useLoaderData();
   const prevForm = data.volume;
+  const navigation = useNavigation();
   const currencyFormat = data.currencyFormat;
   const [formData, setFormData] = useState({
     offerName: prevForm?.offerName,
@@ -315,7 +316,6 @@ export default function EditVolumeDiscount() {
 
 
   const renderStep3 = () => (
-    <Layout>
      <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}} className="layoutGrid">
         <BlockStack gap="500">
         <Card>
@@ -984,159 +984,166 @@ export default function EditVolumeDiscount() {
           </Card>
         </BlockStack>
       
-      <div style={{position:'sticky', top:'10px', height: 'fit-content'}} className="sticky-card">
-      
-       
-        <Card>
-        <Text>Block Preview</Text>
-          <div style={{
-            backgroundColor: 'transparent',
-            paddingTop: '20px' 
-          }}>
-          
-           
-              <span style={{
-                color: formData.blockTitleColor,
-                [formData.blockTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.blockTitleStyle,
-                textAlign: 'center',
-                display: 'block',
-                marginBottom: '20px',
-                fontSize: `${formData.blockTitleSize}px`
-              }}>
-                {formData.blockTitle || 'Bundle & Save'}
-              </span>
-            
-            <div style={{
-            display: "flex",
-            flexDirection: 'column',
-            gap: "15px",
-          }}>
-              {formData.offers.map((offer, index) => (
-                <div 
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '15px',
-                    border: `${formData.borderWidth}px solid ${offer.active  ?  formData.optionBorderColor : '#ddd'}`,
-                    borderRadius: `${formData.borderRadius}px`,
-                    position: 'relative',
-                    backgroundColor: offer.active ? formData.optionBackgroundColor : formData.optionNonSelectedBackgroundColor
-                  }}
-                >
-                  {/* Custom Radio */}
-                  <div style={{
-                    width: '17px',
-                    height: '15px',
-                    borderRadius: '50%',
-                    border: `2px solid ${offer.active ? formData.optionBorderColor : 'grey'}`,
-                    marginRight: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      backgroundColor: offer.active ? formData.optionBorderColor : 'transparent',
-                    }} />
-                  </div>
-
-                  {/* Offer Content */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    
-                    <span style={{ display: 'flex', flexDirection: 'column', fontSize: `${formData.offerTitleSize}px`, color: formData.offerTitleColor, [formData.offerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.offerTitleStyle }}>
-                      {offer.offerTitle || `Buy ${offer.quantity}`}<br/>
-                      <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData.selections[0].price) > 0 ? calculateDiscountedPrice(offer,formData.selections[0].price).toFixed(2) : formData.selections[0].price.toFixed(2)}</span>
-                      {offer.discountValue && offer.discountValue > 0 && (
-                        <span 
-                          style={{ 
-                            fontSize: `${formData.cpriceTitleSize}px`, 
-                            color: formData.cpriceTitleColor, 
-                            [formData.cpriceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.cpriceTitleStyle, 
-                            lineHeight: '120%', 
-                            textDecoration: 'line-through'
-                          }}
-                        >
-                          {currencySymbol}
-                          {offer.quantity*formData.selections[0].price > 0 
-                            ? (offer.quantity*formData.selections[0].price).toFixed(2) 
-                            : formData.selections[0].price.toFixed(2)}
-                        </span>
-                      )}
-                    </span>
+        <div style={{position:'sticky', top:'10px', height: 'fit-content'}} className="sticky-card">
         
-                    <div style={{display:'flex', flexDirection:'column', alignItems: 'center'}}>
-                    {offer.tag && (
-                    <div style={{
-                      backgroundColor: formData.tagBackgroundColor,
-                      color: formData.tagTitleColor,
-                      padding: '2px 4px',
-                      lineHeight: '10px',
-                      borderRadius: '4px',
-                      fontSize: `${formData.tagTitleSize}px`,
-                      [formData.tagTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.tagTitleStyle
-                    }}>
-                      {offer.tag}
-                    </div>
-                  )}
-                    {/* Prices */}
-                    <div>
-                      <span style={{ fontSize: `${formData.discountLabelSize}px`, color: formData.discountLabelColor, [formData.discountLabelStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.discountLabelStyle }} >
-                         {offer.discountLabel}
-                      </span>
-                    </div>
-                    </div>
-                  </div>
-                  
-                </div>
-              ))}
-            </div>
-            {(formData.footerText1 || formData.footerText2) && (
+        
+          <Card>
+          <Text>Block Preview</Text>
+            <div style={{
+              backgroundColor: 'transparent',
+              paddingTop: '20px' 
+            }}>
+            
+            
+                <span style={{
+                  color: formData.blockTitleColor,
+                  [formData.blockTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.blockTitleStyle,
+                  textAlign: 'center',
+                  display: 'block',
+                  marginBottom: '20px',
+                  fontSize: `${formData.blockTitleSize}px`
+                }}>
+                  {formData.blockTitle || 'Bundle & Save'}
+                </span>
+              
               <div style={{
-                marginTop: '20px',
-                textAlign: 'center',
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between"
-              }}>
-                {formData.footerText1 && (
-                    <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
-                    {formData.footerText1}
-                    </span>
-                )}
-                {formData.footerText2 && (
-                   <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
-                    {formData.footerText2} {currencySymbol}{formData.offers[0].quantity*formData.selections[0].price}
-                    </span>
-                )}
+              display: "flex",
+              flexDirection: 'column',
+              gap: "15px",
+            }}>
+                {formData.offers.map((offer, index) => (
+                  <div 
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '15px',
+                      border: `${formData.borderWidth}px solid ${offer.active  ?  formData.optionBorderColor : '#ddd'}`,
+                      borderRadius: `${formData.borderRadius}px`,
+                      position: 'relative',
+                      backgroundColor: offer.active ? formData.optionBackgroundColor : formData.optionNonSelectedBackgroundColor
+                    }}
+                  >
+                    {/* Custom Radio */}
+                    <div style={{
+                      width: '17px',
+                      height: '15px',
+                      borderRadius: '50%',
+                      border: `2px solid ${offer.active ? formData.optionBorderColor : 'grey'}`,
+                      marginRight: '15px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: offer.active ? formData.optionBorderColor : 'transparent',
+                      }} />
+                    </div>
+
+                    {/* Offer Content */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      
+                      <span style={{ display: 'flex', flexDirection: 'column', fontSize: `${formData.offerTitleSize}px`, color: formData.offerTitleColor, [formData.offerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.offerTitleStyle }}>
+                        {offer.offerTitle || `Buy ${offer.quantity}`}<br/>
+                        <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData.selections[0].price) > 0 ? calculateDiscountedPrice(offer,formData.selections[0].price).toFixed(2) : formData.selections[0].price.toFixed(2)}</span>
+                        {offer.discountValue && offer.discountValue > 0 && (
+                          <span 
+                            style={{ 
+                              fontSize: `${formData.cpriceTitleSize}px`, 
+                              color: formData.cpriceTitleColor, 
+                              [formData.cpriceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.cpriceTitleStyle, 
+                              lineHeight: '120%', 
+                              textDecoration: 'line-through'
+                            }}
+                          >
+                            {currencySymbol}
+                            {offer.quantity*formData.selections[0].price > 0 
+                              ? (offer.quantity*formData.selections[0].price).toFixed(2) 
+                              : formData.selections[0].price.toFixed(2)}
+                          </span>
+                        )}
+                      </span>
+          
+                      <div style={{display:'flex', flexDirection:'column', alignItems: 'center'}}>
+                      {offer.tag && (
+                      <div style={{
+                        backgroundColor: formData.tagBackgroundColor,
+                        color: formData.tagTitleColor,
+                        padding: '2px 4px',
+                        lineHeight: '10px',
+                        borderRadius: '4px',
+                        fontSize: `${formData.tagTitleSize}px`,
+                        [formData.tagTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.tagTitleStyle
+                      }}>
+                        {offer.tag}
+                      </div>
+                    )}
+                      {/* Prices */}
+                      <div>
+                        <span style={{ fontSize: `${formData.discountLabelSize}px`, color: formData.discountLabelColor, [formData.discountLabelStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.discountLabelStyle }} >
+                          {offer.discountLabel}
+                        </span>
+                      </div>
+                      </div>
+                    </div>
+                    
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        </Card>
+              {(formData.footerText1 || formData.footerText2) && (
+                <div style={{
+                  marginTop: '20px',
+                  textAlign: 'center',
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                }}>
+                  {formData.footerText1 && (
+                      <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
+                      {formData.footerText1}
+                      </span>
+                  )}
+                  {formData.footerText2 && (
+                    <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
+                      {formData.footerText2} {currencySymbol}{formData.offers[0].quantity*formData.selections[0].price}
+                      </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
-      </div>
-    </Layout>
   );
+  if (navigation.state === "loading") {
+    return (
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
+        <Spinner accessibilityLabel="Loading" size="large" />
+      </div>
+    );
+  }
 
   return (
-    <Page>
-    <BlockStack gap="800">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Text variant="heading3xl" as="h2">
-                Update '{formData.offerName}''
-            </Text>
-          
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <Button  onClick={() => {navigate(`/app`)}}>Back</Button>
-                <Button  loading={isLoading} onClick={() => handleSave('draft')}>Save as Draft</Button>
-                <Button loading={isLoading} variant="primary" onClick={() => handleSave('published')}>Update</Button>
-            </div>
-            
-        </div>
-      {renderStep3()}
-      </BlockStack>
+    <Page
+    backAction={{content: 'Products', url: '/app'}}
+    title={"Update "+"'"+formData.offerName+"'"}
+    compactTitle
+    primaryAction={{content: 'Update', onAction: () => handleSave('published')}}
+    secondaryActions={[
+      {
+        content: 'Save as Draft',
+        onAction: () => handleSave('draft')
+      }
+    ]}
+    > 
+    <div style={{marginTop: '20px'}}> 
+          <BlockStack gap="800">
+            {renderStep3()}
+          </BlockStack>
+      </div>
     </Page>
   );
 }

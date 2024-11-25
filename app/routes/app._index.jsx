@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Page, Layout, EmptyState, Card, DataTable, Button, 
-  ButtonGroup, Text, Badge, SkeletonBodyText, Modal
+  ButtonGroup, Text, Badge, Spinner, Modal
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useNavigate, useLoaderData,  useFetcher } from "@remix-run/react";
+import { useNavigate, useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import prisma from "../db.server";
 import { json } from "@remix-run/node";
 
@@ -96,6 +96,7 @@ export default function Index() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const app = useAppBridge();
+  const navigation = useNavigation();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -195,6 +196,14 @@ export default function Index() {
    
   ]);
 
+  if (navigation.state === "loading") {
+    return (
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
+        <Spinner accessibilityLabel="Loading" size="large" />
+      </div>
+    );
+  }
+
   if (allDiscounts.length === 0) {
     return (
       <Page>
@@ -220,6 +229,7 @@ export default function Index() {
   }
 
   return (
+    
     <Page
       title="Dashboard"
       primaryAction={{

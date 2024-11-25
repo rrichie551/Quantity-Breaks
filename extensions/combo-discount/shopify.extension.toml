@@ -1,14 +1,14 @@
 api_version = "2024-10"
 
 [[extensions]]
-name = "ProfitSuite"
+name = "t:name"
 handle = "combo-discount"
 type = "function"
 
 description = "t:description"
 
   [[extensions.targeting]]
-  target = "purchase.product-discount.run"
+  target = "purchase.cart-transform.run"
   input_query = "src/run.graphql"
   export = "run"
 

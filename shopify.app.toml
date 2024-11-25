@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "4d6989a96f37a9f08b98c8e6819f9efe"
-application_url = "https://glad-hart-mh-fo.trycloudflare.com"
+application_url = "https://marc-operation-bidder-vaccine.trycloudflare.com"
 embedded = true
 name = "Quantity-Breaks-Testing"
 handle = "quantity-breaks-testing-1"
@@ -20,9 +20,9 @@ scopes = ""
 
 [auth]
 redirect_urls = [
-  "https://glad-hart-mh-fo.trycloudflare.com/auth/callback",
-  "https://glad-hart-mh-fo.trycloudflare.com/auth/shopify/callback",
-  "https://glad-hart-mh-fo.trycloudflare.com/api/auth/callback"
+  "https://marc-operation-bidder-vaccine.trycloudflare.com/auth/callback",
+  "https://marc-operation-bidder-vaccine.trycloudflare.com/auth/shopify/callback",
+  "https://marc-operation-bidder-vaccine.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
