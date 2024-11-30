@@ -1,7 +1,15 @@
 query RunInput {
-  discountNode {
-    metafield(namespace: "$app:bulk-discount", key: "function-configuration") {
-      value
+  cart {
+    lines {
+      id
+      quantity
+      discountType: attribute (key: "__discountTypePf"){
+        value
+      }
+      discountValue: attribute (key: "__discountValue"){
+        value
+      }
     }
   }
 }
+

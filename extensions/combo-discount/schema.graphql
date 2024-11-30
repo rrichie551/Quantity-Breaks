@@ -24,21 +24,6 @@ type Attribute {
 }
 
 """
-Key-value pairs that contains additional information.
-"""
-input AttributeOutput {
-  """
-  Key or name of the attribute.
-  """
-  key: String!
-
-  """
-  Value of the attribute.
-  """
-  value: String!
-}
-
-"""
 Represents information about the buyer that is interacting with the cart.
 """
 type BuyerIdentity {
@@ -88,9 +73,114 @@ type Cart {
   buyerIdentity: BuyerIdentity
 
   """
+  The costs that the buyer will pay at checkout.
+  """
+  cost: CartCost!
+
+  """
+  A list of lines containing information about the items that can be delivered.
+  """
+  deliverableLines: [DeliverableCartLine!]!
+
+  """
+  The delivery groups available for the cart based on the buyer's shipping address.
+  """
+  deliveryGroups: [CartDeliveryGroup!]!
+
+  """
   A list of lines containing information about the items the customer intends to purchase.
   """
   lines: [CartLine!]!
+}
+
+"""
+The cost that the buyer will pay at checkout.
+"""
+type CartCost {
+  """
+  The amount, before taxes and discounts, for the customer to pay.
+  """
+  subtotalAmount: MoneyV2!
+
+  """
+  The total amount for the customer to pay.
+  """
+  totalAmount: MoneyV2!
+
+  """
+  The duty amount for the customer to pay at checkout.
+  """
+  totalDutyAmount: MoneyV2
+
+  """
+  The tax amount for the customer to pay at checkout.
+  """
+  totalTaxAmount: MoneyV2
+}
+
+"""
+Information about the options available for one or more line items to be delivered to a specific address.
+"""
+type CartDeliveryGroup {
+  """
+  A list of cart lines for the delivery group.
+  """
+  cartLines: [CartLine!]!
+
+  """
+  The destination address for the delivery group.
+  """
+  deliveryAddress: MailingAddress
+
+  """
+  The delivery options available for the delivery group.
+  """
+  deliveryOptions: [CartDeliveryOption!]!
+
+  """
+  Unique identifier for the delivery group.
+  """
+  id: ID!
+
+  """
+  Information about the delivery option the buyer has selected.
+  """
+  selectedDeliveryOption: CartDeliveryOption
+}
+
+"""
+Information about a delivery option.
+"""
+type CartDeliveryOption {
+  """
+  The code of the delivery option.
+  """
+  code: String
+
+  """
+  The cost for the delivery option.
+  """
+  cost: MoneyV2!
+
+  """
+  The method for the delivery option.
+  """
+  deliveryMethodType: DeliveryMethod!
+
+  """
+  The description of the delivery option.
+  """
+  description: String
+
+  """
+  The unique identifier of the delivery option.
+  """
+  handle: Handle!
+
+  """
+  The title of the delivery option.
+  """
+  title: String
 }
 
 """
@@ -161,56 +251,22 @@ type CartLineCost {
   totalAmount: MoneyV2!
 }
 
-input CartLineInput {
-  """
-  The ID of the cart line.
-  """
-  cartLineId: ID!
-
-  """
-  The quantity of the cart line to be merged.The max quantity is 2000.
-  """
-  quantity: Int!
-}
-
 """
-An operation to apply to the Cart.
+A discount [Target](https://shopify.dev/api/functions/reference/product-discounts/graphql/common-objects/target) that applies to a specific cart line, up to an optional quantity limit.
 """
-input CartOperation @oneOf {
+input CartLineTarget {
   """
-  A cart line expand operation.
+  The ID of the targeted cart line.
   """
-  expand: ExpandOperation
+  id: ID!
 
   """
-  A cart line merge operation.
-  """
-  merge: MergeOperation
+  The number of line items that are being discounted.
+  The default value is `null`, which represents the quantity of the matching line items.
 
+  The value is validated against: > 0.
   """
-  A cart line update operation. Only stores on the Shopify Plus plan can use apps with update operations.
-  """
-  update: UpdateOperation
-}
-
-"""
-A customization which applies cart transformations to the merchandise lines.
-"""
-type CartTransform implements HasMetafields {
-  """
-  Returns a metafield by namespace and key that belongs to the resource.
-  """
-  metafield(
-    """
-    The key for the metafield.
-    """
-    key: String!
-
-    """
-    The container the metafield belongs to. If omitted, the app-reserved namespace will be used.
-    """
-    namespace: String
-  ): Metafield
+  quantity: Int
 }
 
 """
@@ -2547,85 +2603,152 @@ Example values: `"29.99"`, `"29.999"`.
 scalar Decimal
 
 """
-A cart line expand operation.
+Represents information about the merchandise in the cart.
 """
-input ExpandOperation {
+type DeliverableCartLine {
   """
-  The cart line id to expand.
+  Retrieve a cart line attribute by key.
+
+  Cart line attributes are also known as line item properties in Liquid.
   """
-  cartLineId: ID!
+  attribute(
+    """
+    The key of the attribute to retrieve.
+    """
+    key: String
+  ): Attribute
 
   """
-  The cart items to expand.
+  The ID of the cart line.
   """
-  expandedCartItems: [ExpandedItem!]!
+  id: ID!
 
   """
-  The image of the group.
+  The merchandise that the buyer intends to purchase.
   """
-  image: ImageInput
+  merchandise: Merchandise!
 
   """
-  The price adjustment to the group.
-  """
-  price: PriceAdjustment
-
-  """
-  Title override. If title is not provided, variant title is used.
-  """
-  title: String
-}
-
-input ExpandedItem {
-  """
-  The CartLine attributes to be added to component line.
-  """
-  attributes: [AttributeOutput!] = []
-
-  """
-  The merchandise id of the expanded item.
-  """
-  merchandiseId: ID!
-
-  """
-  The price adjustment for the expanded item.
-  """
-  price: ExpandedItemPriceAdjustment
-
-  """
-  The quantity of the expanded item.The max quantity is 2000.
+  The quantity of the merchandise that the customer intends to purchase.
   """
   quantity: Int!
 }
 
 """
-A fixed price per unit adjustment to apply to the expanded item.
+List of different delivery method types.
 """
-input ExpandedItemFixedPricePerUnitAdjustment {
+enum DeliveryMethod {
   """
-  The fixed price amount per quantity of the expanded item in presentment currency.
+  Local Delivery.
+  """
+  LOCAL
+
+  """
+  None.
+  """
+  NONE
+
+  """
+  Shipping to a Pickup Point.
+  """
+  PICKUP_POINT
+
+  """
+  Local Pickup.
+  """
+  PICK_UP
+
+  """
+  Retail.
+  """
+  RETAIL
+
+  """
+  Shipping.
+  """
+  SHIPPING
+}
+
+"""
+The discount to be applied.
+"""
+input Discount {
+  """
+  The discount message.
+  """
+  message: String
+
+  """
+  The targets of the discount.
+
+  This argument accepts a collection of either `ProductVariantTarget`s or `CartLineTarget`s, but not both.
+  """
+  targets: [Target!]!
+
+  """
+  The value of the discount.
+  """
+  value: Value!
+}
+
+"""
+The strategy that's applied to the list of discounts.
+"""
+enum DiscountApplicationStrategy {
+  """
+  Apply all discounts with conditions that are satisfied. This does not override discount combination or stacking rules.
+  """
+  ALL
+
+  """
+  Only apply the first discount with conditions that are satisfied.
+  """
+  FIRST
+
+  """
+  Only apply the discount that offers the maximum reduction.
+  """
+  MAXIMUM
+}
+
+"""
+A discount wrapper node.
+"""
+type DiscountNode implements HasMetafields {
+  """
+  Returns a metafield by namespace and key that belongs to the resource.
+  """
+  metafield(
+    """
+    The key for the metafield.
+    """
+    key: String!
+
+    """
+    The container the metafield belongs to. If omitted, the app-reserved namespace will be used.
+    """
+    namespace: String
+  ): Metafield
+}
+
+"""
+A fixed amount value.
+"""
+input FixedAmount {
+  """
+  The fixed amount value of the discount, in the currency of the cart.
+
+  The amount must be greater than or equal to 0.
   """
   amount: Decimal!
-}
 
-"""
-A price adjustment to apply to the expanded item.
-"""
-input ExpandedItemPriceAdjustment {
   """
-  The price adjustment for the expanded item.
-  """
-  adjustment: ExpandedItemPriceAdjustmentValue!
-}
+  Whether to apply the value to each entitled item.
 
-"""
-A price adjustment to apply to a cart line.
-"""
-input ExpandedItemPriceAdjustmentValue @oneOf {
+  The default value is `false`, which causes the value to be applied once across the entitled items.
+  When the value is `true`, the value will be applied to each of the entitled items.
   """
-  A fixed price per unit adjustment to apply to the expanded item.
-  """
-  fixedPricePerUnit: ExpandedItemFixedPricePerUnitAdjustment
+  appliesToEachItem: Boolean
 }
 
 """
@@ -2633,9 +2756,14 @@ The run target result. In API versions 2023-10 and beyond, this type is deprecat
 """
 input FunctionResult {
   """
-  Cart operations to run on Cart.
+  The strategy to apply the list of discounts.
   """
-  operations: [CartOperation!]!
+  discountApplicationStrategy: DiscountApplicationStrategy!
+
+  """
+  The list of discounts to be applied.
+  """
+  discounts: [Discount!]!
 }
 
 """
@@ -2643,9 +2771,14 @@ The run target result.
 """
 input FunctionRunResult {
   """
-  Cart operations to run on Cart.
+  The strategy to apply the list of discounts.
   """
-  operations: [CartOperation!]!
+  discountApplicationStrategy: DiscountApplicationStrategy!
+
+  """
+  The list of discounts to be applied.
+  """
+  discounts: [Discount!]!
 }
 
 """
@@ -2699,15 +2832,8 @@ Example value: `"gid://shopify/Product/10079785100"`
 scalar ID
 
 """
-The image of an object.
+The input object for the function.
 """
-input ImageInput {
-  """
-  The URL of the image.
-  """
-  url: URL!
-}
-
 type Input {
   """
   The cart.
@@ -2715,9 +2841,9 @@ type Input {
   cart: Cart!
 
   """
-  The CartTransform containing the function.
+  The discount node executing the function.
   """
-  cartTransform: CartTransform!
+  discountNode: DiscountNode!
 
   """
   The localization of the Function execution context.
@@ -3573,6 +3699,81 @@ type Localization {
 }
 
 """
+Represents a mailing address.
+"""
+type MailingAddress {
+  """
+  The first line of the address. Typically the street address or PO Box number.
+  """
+  address1: String
+
+  """
+  The second line of the address. Typically the number of the apartment, suite, or unit.
+  """
+  address2: String
+
+  """
+  The name of the city, district, village, or town.
+  """
+  city: String
+
+  """
+  The name of the customer's company or organization.
+  """
+  company: String
+
+  """
+  The two-letter code for the country of the address. For example, US.
+  """
+  countryCode: CountryCode
+
+  """
+  The first name of the customer.
+  """
+  firstName: String
+
+  """
+  The last name of the customer.
+  """
+  lastName: String
+
+  """
+  The approximate latitude of the address.
+  """
+  latitude: Float
+
+  """
+  The approximate longitude of the address.
+  """
+  longitude: Float
+
+  """
+  The market of the address.
+  """
+  market: Market
+
+  """
+  The full name of the customer, based on firstName and lastName.
+  """
+  name: String
+
+  """
+  A unique phone number for the customer. Formatted using E.164 standard. For example, +16135551111.
+  """
+  phone: String
+
+  """
+  The alphanumeric code for the region. For example, ON.
+  """
+  provinceCode: String
+
+  """
+  The zip or postal code of the address.
+  """
+  zip: String
+}
+
+"""
 A market is a group of one or more regions that you want to target for international sales.
 By creating a market, you can configure a distinct, localized shopping experience for
 customers from a specific area of the world. For example, you can
@@ -3643,41 +3844,6 @@ The merchandise to be purchased at checkout.
 union Merchandise = CustomProduct | ProductVariant
 
 """
-A cart line merge operation.
-"""
-input MergeOperation {
-  """
-  The CartLine attributes to be added to the parent line.
-  """
-  attributes: [AttributeOutput!] = []
-
-  """
-  The list of cart lines to merge.
-  """
-  cartLines: [CartLineInput!]!
-
-  """
-  The image of the group.
-  """
-  image: ImageInput
-
-  """
-  The product variant that models the group of lines.
-  """
-  parentVariantId: ID!
-
-  """
-  The price adjustment to the group.
-  """
-  price: PriceAdjustment
-
-  """
-  The name of the group of lines to merge. If it isn't specified, it will use the parent_variant' name.
-  """
-  title: String
-}
-
-"""
 [Metafields](https://shopify.dev/apps/metafields)
 enable you to attach additional information to a
 Shopify resource, such as a [Product](https://shopify.dev/api/admin-graphql/latest/objects/product)
@@ -3733,7 +3899,7 @@ type MutationRoot {
   ): Void! @deprecated(reason: "Use the target-specific field instead.")
 
   """
-  Handles the Function result for the purchase.cart-transform.run target.
+  Handles the Function result for the purchase.product-discount.run target.
   """
   run(
     """
@@ -3743,16 +3909,14 @@ type MutationRoot {
   ): Void!
 }
 
-input PriceAdjustment {
+"""
+A percentage value.
+"""
+input Percentage {
   """
-  The percentage price decrease of the price adjustment.
-  """
-  percentageDecrease: PriceAdjustmentValue
-}
+  The percentage value.
 
-input PriceAdjustmentValue {
-  """
-  The value of the price adjustment.
+  The value is validated against: >= 0 and <= 100.
   """
   value: Decimal!
 }
@@ -3903,6 +4067,25 @@ type ProductVariant implements HasMetafields {
 }
 
 """
+A discount [Target](https://shopify.dev/api/functions/reference/product-discounts/graphql/common-objects/target) that can apply to any cart lines for a specific product variant, up to an
+optional quantity limit.
+"""
+input ProductVariantTarget {
+  """
+  The ID of the targeted product variant.
+  """
+  id: ID!
+
+  """
+  The maximum number of line item units to be discounted.
+  The default value is `null`, which represents the total quantity of the matching line items.
+
+  The value is validated against: > 0.
+  """
+  quantity: Int
+}
+
+"""
 Represents information about the buyer that is interacting with the cart.
 """
 type PurchasingCompany {
@@ -4031,6 +4214,29 @@ type Shop implements HasMetafields {
 }
 
 """
+A target of a discount, which determines which cart line(s) the discount will affect.
+
+A discount can have a collection of either `ProductVariantTarget`s or `CartLineTarget`s, but not both.
+
+Multiple targets with the same type and ID are the same as a single target of that type and ID with their
+quantities added together, or `null` if any of those targets have a quantity of `null`.
+
+See the [Product Discount API reference](https://shopify.dev/docs/api/functions/reference/product-discounts/graphql#functionrunresult) for examples.
+"""
+input Target @oneOf {
+  """
+  A discount [Target](https://shopify.dev/api/functions/reference/product-discounts/graphql/common-objects/target) that applies to a specific cart line, up to an optional quantity limit.
+  """
+  cartLine: CartLineTarget
+
+  """
+  A discount [Target](https://shopify.dev/api/functions/reference/product-discounts/graphql/common-objects/target) that can apply to any cart lines for a specific product variant, up to an
+  optional quantity limit.
+  """
+  productVariant: ProductVariantTarget
+}
+
+"""
 A subset of the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format that
 includes the time but not the date or timezone which is determined from context.
 For example, "05:43:21".
@@ -4038,67 +4244,18 @@ For example, "05:43:21".
 scalar TimeWithoutTimezone
 
 """
-Represents an [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986) and
-[RFC 3987](https://datatracker.ietf.org/doc/html/rfc3987)-compliant URI string.
-
-For example, `"https://example.myshopify.com"` is a valid URL. It includes a scheme (`https`) and a host
-(`example.myshopify.com`).
+The value of the discount.
 """
-scalar URL
-
-"""
-A cart line update operation. Only stores on the Shopify Plus plan can use apps with update operations.
-"""
-input UpdateOperation {
+input Value @oneOf {
   """
-  The ID of the cart line.
+  A fixed amount value.
   """
-  cartLineId: ID!
+  fixedAmount: FixedAmount
 
   """
-  The image override for the cart line item.
+  A percentage value.
   """
-  image: ImageInput
-
-  """
-  The price adjustment for the cart line item.
-  """
-  price: UpdateOperationPriceAdjustment
-
-  """
-  The title override for the cart line item.
-  """
-  title: String
-}
-
-"""
-A fixed price per unit adjustment to apply to a cart line.
-"""
-input UpdateOperationFixedPricePerUnitAdjustment {
-  """
-  The fixed price amount per quantity of the cart line item in presentment currency.
-  """
-  amount: Decimal!
-}
-
-"""
-A price adjustment to apply to a cart line item.
-"""
-input UpdateOperationPriceAdjustment {
-  """
-  The price adjustment per unit to apply to the cart line item.
-  """
-  adjustment: UpdateOperationPriceAdjustmentValue!
-}
-
-"""
-A price adjustment to apply to a cart line item.
-"""
-input UpdateOperationPriceAdjustmentValue @oneOf {
-  """
-  A fixed price per unit adjustment to apply to a cart line.
-  """
-  fixedPricePerUnit: UpdateOperationFixedPricePerUnitAdjustment
+  percentage: Percentage
 }
 
 """

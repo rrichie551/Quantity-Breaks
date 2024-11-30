@@ -1,29 +1,34 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "4d6989a96f37a9f08b98c8e6819f9efe"
-application_url = "https://marc-operation-bidder-vaccine.trycloudflare.com"
+client_id = "d8164210c51d8fc118bd925bb77be7e0"
+application_url = "https://quantity-breaks.onrender.com/"
 embedded = true
-name = "Quantity-Breaks-Testing"
-handle = "quantity-breaks-testing-1"
+name = "ProfitSuite: Volume Discounts"
+handle = "quantity-breaks-shumais"
 
 [build]
-include_config_on_deploy = true
-dev_store_url = "bundle-app-v5.myshopify.com"
 automatically_update_urls_on_dev = true
+dev_store_url = "simplebundleapp.myshopify.com"
+include_config_on_deploy = true
 
 [webhooks]
 api_version = "2024-10"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = ""
+scopes = "write_discounts,write_products,read_themes"
 
 [auth]
 redirect_urls = [
-  "https://marc-operation-bidder-vaccine.trycloudflare.com/auth/callback",
-  "https://marc-operation-bidder-vaccine.trycloudflare.com/auth/shopify/callback",
-  "https://marc-operation-bidder-vaccine.trycloudflare.com/api/auth/callback"
+  "https://quantity-breaks.onrender.com/auth/callback",
+  "https://quantity-breaks.onrender.com/auth/shopify/callback",
+  "https://quantity-breaks.onrender.com/api/auth/callback"
 ]
+
+[app_proxy]
+url = "https://quantity-breaks.onrender.com/app/proxy"
+subpath = "quantityBreaks"
+prefix = "apps"
 
 [pos]
 embedded = false

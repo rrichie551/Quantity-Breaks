@@ -3,21 +3,13 @@ query RunInput {
     lines {
       id
       quantity
-      profitSuite: attribute (key: "_profitSuite"){
+      comboDiscountType: attribute (key: "__comboDiscountPf"){
         value
       }
-      total: attribute (key: "__totalSuite"){
+      comboDiscountValue: attribute (key: "__comboDiscountValue"){
         value
-      }
-      merchandise {
-        ... on ProductVariant {
-          id
-          product {
-            id
-            title
-          }
-        }
       }
     }
   }
 }
+

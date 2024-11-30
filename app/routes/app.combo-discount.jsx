@@ -10,6 +10,8 @@ import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import { DeleteIcon } from "@shopify/polaris-icons";
+import { QUERY } from "../api/QUERY";
+import { REGISTERC } from "../api/REGISTERC";
 
 // Loader and Action functions
 export const loader = async ({ request }) => {
@@ -19,7 +21,7 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session,admin } = await authenticate.admin(request);
   const formData = await request.formData();
 
   if (request.method !== "POST") {
@@ -100,6 +102,15 @@ export const action = async ({ request }) => {
         quantityLabelColor: data.quantityLabelColor,
       }
     });
+    const query = await admin.graphql(QUERY);
+    const queryResponse = await query.json();
+    console.log("This is the query response",queryResponse);
+    const functionId = queryResponse.data.shopifyFunctions.edges.find(edge => edge.node.title === "combo-discount").node;
+    console.log("This is the functionId",functionId);
+    const response = await admin.graphql(REGISTERC(functionId.id));
+     const jsonResponse = await response.json(); 
+    console.log("This is the error",jsonResponse.data.discountAutomaticAppCreate.userErrors);
+     console.log("This is the response",jsonResponse);
 
     return json({ success: true, combo });
 
@@ -185,6 +196,7 @@ export default function ComboDiscount() {
           handle: product.handle,
           image: product.images[0] || null,
           price: product.variants[0].price,
+          variants: product.variants,
           quantity: 1
         }));
 

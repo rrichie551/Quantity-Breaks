@@ -26,15 +26,17 @@ import { CheckIcon, DeleteIcon, XIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import prisma from "../db.server";
 import { json } from "@remix-run/node";
+import { QUERY } from "../api/QUERY";
+import { REGISTERV } from "../api/REGISTERV";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+ await authenticate.admin(request);
   const shopInfo = await fetchShopInfo(request);
   return shopInfo.data.shop.currencyFormats.moneyFormat;
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const formData = await request.formData();
   console.log("Form Data: ",JSON.parse(formData.get('formData')));
   
@@ -87,7 +89,13 @@ export const action = async ({ request }) => {
         borderRadius: data.borderRadius,
       }
     });
-
+    const query = await admin.graphql(QUERY);
+    const queryResponse = await query.json();
+      const functionId = queryResponse.data.shopifyFunctions.edges.find(edge => edge.node.title === "ProfitSuite").node;
+      const response = await admin.graphql(REGISTERV(functionId.id));
+     const jsonResponse = await response.json(); 
+    console.log("This is the error",jsonResponse.data.discountAutomaticAppCreate.userErrors);
+     console.log("This is the response",jsonResponse);
     return json({ success: true, volume });
 
   } catch (error) {

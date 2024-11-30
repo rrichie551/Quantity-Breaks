@@ -1,14 +1,19 @@
 <style>
   .comboDiscountContainer {
-    cursor: pointer;
     transition: all 0.4s ease;
   }
-  .addToCartBtn {
+  .addToCartBtnPf {
     cursor: pointer;
     transition: all 0.3s ease;
   }
-  .addToCartBtn:hover {
-    opacity: 0.9;
+  .addToCartBtnPf:hover {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+  .addToCartBtnPf[disabled] {
+    opacity: 0.5 !important;
+    pointer-events: none !important;
   }
 </style>
 
@@ -62,7 +67,7 @@ function formatMoney(cents, format) {
 
 function calculateComboPrice(combo, products) {
   const totalPrice = products.reduce((sum, product) => 
-    sum + (parseFloat(product.price) * product.quantity), 0
+    sum + (parseFloat(product.price) * product.quantity* 100), 0
   );
   let discountedPrice = totalPrice;
 
@@ -170,7 +175,8 @@ function createComboDiscount(data, targetSelector) {
     price.style.fontSize = `${data.priceSize}px`;
     price.style[data.priceStyle === 'italic' ? 'fontStyle' : 'fontWeight'] = data.priceStyle;
     price.style.color = data.priceColor;
-    price.textContent = formatMoney(product.price * product.quantity, formatF);
+    console.log(product.price.replace(/[^0-9.]/g, ''),"product.price.replace(/[^0-9.]/g, '')");
+    price.textContent = formatMoney(product.price.replace(/[^0-9.]/g, ''), formatF);
 
     productInfo.appendChild(titleQuantity);
     productInfo.appendChild(price);
@@ -245,7 +251,7 @@ function createComboDiscount(data, targetSelector) {
 
   // Add to cart button
   const button = document.createElement('button');
-  button.className = 'addToCartBtn';
+  button.className = 'addToCartBtnPf';
   button.style.backgroundColor = data.buttonBackground;
   button.style.color = data.buttonTextColor;
   button.style.border = 'none';
@@ -279,7 +285,7 @@ function createComboDiscount(data, targetSelector) {
 
 function ComboBundle() {
   const base = '{{ shop.url }}';
-  const baseUrl = `${base}/apps/quantityTsting`;
+  const baseUrl = `${base}/apps/quantityBreaks`;
 
   fetch(baseUrl, {
     method: 'GET',
@@ -305,6 +311,66 @@ function ComboBundle() {
         }
       }
     });
+    return combos;
+  }).then((combos)=>{
+    combos.forEach((combo)=>{
+      if (combo.products.some(product => 
+        product.id.replace('gid://shopify/Product/', '') === '{{ product.id }}'
+      ))
+      {
+
+        const prices = calculateComboPrice(combo, combo.products);
+        const finalPrice = formatMoney(prices.discounted, formatF).replace(/[^0-9.]/g, '');
+        const totalPrice = formatMoney(prices.total, formatF).replace(/[^0-9.]/g, '');
+        document.querySelectorAll('.addToCartBtnPf').forEach((e)=>{
+          e.addEventListener('click',(e)=>{
+          e.preventDefault();
+          const formData = {
+          items: combo.products.map(product => ({
+             id: parseInt(product.variants[0].id.replace('gid://shopify/ProductVariant/', '')),
+             quantity: product.quantity,
+             properties: {
+               __comboDiscountPf: "combo-discount",
+               __comboDiscountValue: ((totalPrice - finalPrice)/combo.products.length)/product.quantity,
+             }
+           }))
+         };
+         console.log(formData);
+         fetch(window.Shopify.routes.root + 'cart/add.js', {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json'
+           },
+           body: JSON.stringify(formData)
+         })
+         .then(response => response.json())
+         .then(data => {
+          document.querySelectorAll('.addToCartBtnPf').forEach((f)=>{
+            f.disabled = true;
+            f.textContent = 'Redirecting to cart...';
+          });
+          
+           setTimeout(() => {
+            document.querySelectorAll('.addToCartBtnPf').forEach((f)=>{
+            f.disabled = false;
+            f.textContent = 'Add to Cart';
+          });
+              // window.location.href = '/cart';
+           }, 2000);
+         })
+         .catch((error) => {
+           console.error('Error:', error);
+           // Reset button state
+           e.disabled = false;
+           e.textContent = 'Add to Cart';
+           // Show error message
+           alert('There was an error adding items to cart. Please try again.');
+         });
+         });
+        });
+      }
+    });
+   
   })
   .catch(error => console.error('Error loading combo discounts:', error));
 }

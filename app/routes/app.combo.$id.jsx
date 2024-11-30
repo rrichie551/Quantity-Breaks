@@ -198,6 +198,7 @@ export default function ComboDiscount() {
           handle: product.handle,
           image: product.images[0] || null,
           price: product.variants[0].price,
+          variants: product.variants,
           quantity: 1
         }));
 
