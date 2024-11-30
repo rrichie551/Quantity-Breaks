@@ -246,23 +246,28 @@ export default function Index() {
   if (allDiscounts.length === 0) {
     return (
       <Page>
-        <TitleBar title="Dashboard" />
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <EmptyState
-                heading="Create Your First Discount"
-                action={{
-                  content: "Create Discount",
-                  onAction: () => navigate("/app/create-discount")
-                }}
-               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-              >
-                <p>Choose between Volume Discounts or Combo Discounts to boost your sales.</p>
-              </EmptyState>
-            </Card>
-          </Layout.Section>
-        </Layout>
+      
+            <BlockStack gap="600">
+                <EmbedWarning  shop={shop} isEmbed1Enabled={isEmbed1Enabled} isEmbed2Enabled={isEmbed2Enabled} />
+                <Layout>
+                  <Layout.Section>
+                  
+                    <Card>
+                      <EmptyState
+                        heading="Create Your First Discount"
+                        action={{
+                          content: "Create Discount",
+                          onAction: () => navigate("/app/create-discount")
+                        }}
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                      >
+                        <p>Choose between Volume Discounts or Combo Discounts to boost your sales.</p>
+                      </EmptyState>
+                    </Card>
+                  </Layout.Section>
+                </Layout>
+            </BlockStack>
+        
       </Page>
     );
   }
