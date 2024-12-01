@@ -10,12 +10,12 @@ export function EmbedWarning({ shop, isEmbed1Enabled, isEmbed2Enabled }) {
   }
   const action = !isEmbed1Enabled ? {
     content: "Enable Volume Discount Embed",
-    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=c9dd21c1-710d-4b80-b128-2e82d2237ee9/volume-discount`,
+    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=${process.env.SHOPIFY_PROFITSUITE_ID}/volume-discount`,
     target: "_blank",
   } : null;
   const secondAction = !isEmbed2Enabled ? {
     content: "Enable Combo Discount Embed",
-    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=c9dd21c1-710d-4b80-b128-2e82d2237ee9/combo-discount`,
+    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=${process.env.SHOPIFY_PROFITSUITE_ID}/combo-discount`,
     target: "_blank",
   } : null;
   
@@ -35,7 +35,7 @@ export function EmbedWarning({ shop, isEmbed1Enabled, isEmbed2Enabled }) {
         </Text> 
         <Text variant="bodyXs" as="p">
           {"Still not sure how to do this, don't worry we are here to help"}{" "}
-          <Link to="https://youtu.be/gOTzDq0dOIQ" target="_blank">{"watch tutorial"}</Link>{" "}
+          <Link to="https://www.loom.com/share/6f235d1482c6451894ae2c29db14ce33?sid=bae13281-c39c-4a10-937e-b19a7b6fecd3" target="_blank">{"watch tutorial"}</Link>{" "}
           {"or contact us through email."}
         </Text>
       </BlockStack>
