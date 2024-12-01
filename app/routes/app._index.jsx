@@ -75,6 +75,7 @@ export const loader = async ({ request }) => {
         const moreClen = cleanSettings.replace(/\/\*[\s\S]*?\*\//g, '');
         const moreCleann = JSON.parse(moreClen);
         const finalSettings = JSON.parse(moreCleann);
+        console.log(finalSettings);
         const volumeDiscount = Object.values(finalSettings?.current?.blocks).find(block => block.type.includes("volume-discount"));
         const comboDiscount = Object.values(finalSettings?.current?.blocks).find(block => block.type.includes("combo-discount"));
         console.log("This is the volumeDiscount", volumeDiscount);
