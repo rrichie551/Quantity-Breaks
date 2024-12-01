@@ -177,6 +177,7 @@ export default function ComboDiscount() {
     quantityLabelSize: 4,
     quantityLabelRadius: 4,
     quantityLabelColor: '#B5B5B5',
+    status:"draft"
   });
 
   // Product picker handler
@@ -267,11 +268,19 @@ export default function ComboDiscount() {
   // Save handler
   const handleSave = async (status) => {
     const formDataToSend = new FormData();
-    formDataToSend.append("formData", JSON.stringify({
+    
+    // Create a copy of formData with updated status
+    const updatedFormData = {
       ...formData,
-      status
-    }));
+      status: status // Add the status to the form data
+    };
+    
+    console.log("Updated formData: ", updatedFormData);
+    
+    // Append the updated data to FormData
+    formDataToSend.append("formData", JSON.stringify(updatedFormData));
     setIsLoading(true);
+    
     submit(formDataToSend, {
       method: "post",
       encType: "multipart/form-data",
@@ -303,10 +312,12 @@ export default function ComboDiscount() {
       onAction: () => navigate("/app")
     }}
     title="Create Combo Discount"
-    primaryAction={{content: 'Publish', onAction: () => handleSave('published')}}
+    primaryAction={{content: 'Publish', loading: isLoading, disabled: isLoading, onAction: () => handleSave('published')}}
     secondaryActions={[
       {
         content: 'Save as Draft',
+        loading: isLoading,
+        disabled: isLoading,
         onAction: () => handleSave('draft')
       }
     ]}

@@ -4,7 +4,6 @@ import {
   ButtonGroup, Text, Badge, Spinner, Modal, BlockStack
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useNavigate, useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import prisma from "../db.server";

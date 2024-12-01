@@ -269,10 +269,19 @@ export default function VolumeDiscount() {
   // Handler for saving/publishing
   const handleSave = async (status) => {
     const formDataToSend = new FormData();
-    console.log("formData: ",formData);
-    formDataToSend.append("formData", JSON.stringify(formData));
-    console.log("formDataToSend: ",formDataToSend);
+    
+    // Create a copy of formData with updated status
+    const updatedFormData = {
+      ...formData,
+      status: status // Add the status to the form data
+    };
+    
+    console.log("Updated formData: ", updatedFormData);
+    
+    // Append the updated data to FormData
+    formDataToSend.append("formData", JSON.stringify(updatedFormData));
     setIsLoading(true);
+    
     submit(formDataToSend, {
       method: "post",
       encType: "multipart/form-data",
@@ -1149,6 +1158,8 @@ export default function VolumeDiscount() {
       onAction: () => setStep(3)
     } : {
       content: 'Publish',
+      loading: isLoading,  // Add loading state
+      disabled: isLoading,
       onAction: () => handleSave('published')
     }
   }
@@ -1162,6 +1173,8 @@ export default function VolumeDiscount() {
     ] : [
       {
         content: 'Save as Draft',
+        loading: isLoading,  // Add loading state
+        disabled: isLoading,
         onAction: () => handleSave('draft')
       },
       {
