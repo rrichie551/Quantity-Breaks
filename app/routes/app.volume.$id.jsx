@@ -22,7 +22,7 @@ import {
 import { DeleteIcon, XIcon,CheckIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import {  useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";

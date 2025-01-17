@@ -2,7 +2,7 @@
 import { handleGraphQLResponse } from "../utils/sharedUtils";
 import { getMainTheme } from "../api/queryMainTheme";
 import { getThemeInfo } from "../api/getThemeInfo";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "./shopify.server";
 import { getShopUrl } from "../api/getShopUrl";
 
 export async function fetchShopUrl(request) {
@@ -11,6 +11,7 @@ export async function fetchShopUrl(request) {
   try {
     const shopUrl = await admin.graphql(getShopUrl);
     const shopUrlBody = await handleGraphQLResponse(shopUrl);
+    console.log("shopUrlBody", shopUrlBody);
     return shopUrlBody;
   } catch (error) {
     console.error("Failed to fetch shop url", error);

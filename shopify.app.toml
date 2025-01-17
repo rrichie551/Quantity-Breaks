@@ -1,14 +1,14 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "4d6989a96f37a9f08b98c8e6819f9efe"
-application_url = "https://mh-care-guatemala-expand.trycloudflare.com"
+application_url = "https://cio-aluminium-grad-struct.trycloudflare.com"
 embedded = true
 name = "Quantity-Breaks-Testing"
 handle = "quantity-breaks-testing-1"
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "simplebundleapp.myshopify.com"
+dev_store_url = "bundle-app-v5.myshopify.com"
 include_config_on_deploy = true
 
 [webhooks]
@@ -20,13 +20,13 @@ scopes = "write_discounts,write_products,read_themes"
 
 [auth]
 redirect_urls = [
-  "https://mh-care-guatemala-expand.trycloudflare.com/auth/callback",
-  "https://mh-care-guatemala-expand.trycloudflare.com/auth/shopify/callback",
-  "https://mh-care-guatemala-expand.trycloudflare.com/api/auth/callback"
+  "https://cio-aluminium-grad-struct.trycloudflare.com/auth/callback",
+  "https://cio-aluminium-grad-struct.trycloudflare.com/auth/shopify/callback",
+  "https://cio-aluminium-grad-struct.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://mh-care-guatemala-expand.trycloudflare.com/app/proxy"
+url = "https://cio-aluminium-grad-struct.trycloudflare.com/app/proxy"
 subpath = "quantityBreaks"
 prefix = "apps"
 

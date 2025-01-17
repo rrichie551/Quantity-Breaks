@@ -4,7 +4,7 @@ import {
   TextField, Select, RangeSlider, Avatar
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 import { useNavigate, useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";

@@ -1,6 +1,6 @@
 import { Page, Layout, Card, BlockStack, Text, Button, Spinner, Grid } from "@shopify/polaris";
 import { useNavigate, useNavigation } from "@remix-run/react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);

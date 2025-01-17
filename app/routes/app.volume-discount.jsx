@@ -10,7 +10,6 @@ import {
   BlockStack,
   Box,
   Grid,
-  Icon,
   Avatar,
   ResourceItem,
   ResourceList,
@@ -20,9 +19,9 @@ import {
   RangeSlider
 } from "@shopify/polaris";
 import {  useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from "@remix-run/react";
-import { CheckIcon, DeleteIcon, XIcon } from "@shopify/polaris-icons";
+import { DeleteIcon, XIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import prisma from "../db.server";
 import { json } from "@remix-run/node";

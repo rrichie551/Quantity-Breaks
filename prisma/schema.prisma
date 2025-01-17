@@ -181,3 +181,61 @@ model Combo {
 
   @@index([sessionId])
 }
+
+model ShopInstallation {
+  id          String   @id @default(cuid())
+  shop        String   @unique
+  myshopifyDomain String? @unique
+  installedAt DateTime @default(now())
+  shopifyStore ShopifyStore?
+  subscription      AppSubscription[]
+}
+model ShopifyStore {
+  id                String   @id @default(cuid())
+  shopInstallation  ShopInstallation @relation(fields: [shop], references: [shop])
+  shop              String   @unique
+  name              String
+  myshopifyDomain   String   @unique
+  url               String
+  eligibleForBundles Boolean
+  storefront        Boolean
+  currencyCode      String
+  planDisplayName   String
+  partnerDevelopment Boolean
+  shopifyPlus       Boolean
+  createdAt         DateTime
+  updatedAt         DateTime @updatedAt
+  contactEmail      String
+  email             String
+  description       String?
+  ianaTimezone      String
+  primaryDomainId   String
+  country           String?
+  mailingSubscribed Boolean @default(true)
+  limitReached      Boolean  @default(false)
+  subscription      AppSubscription[] 
+}
+
+model ScheduledUninstall {
+  id           String   @id @default(cuid())
+  shop         String   @unique
+  scheduledFor DateTime
+  sessionId    String
+  createdAt    DateTime @default(now())
+}
+
+model AppSubscription {
+  id              String    @id @default(cuid())
+  shop            String    @unique
+  status          String    @default("FREE")
+  plan            String?
+  previousPlan    String?
+  revenueTracked  Decimal?  @default(0) @db.Decimal(10, 2)
+  monthlyRevenue  Decimal?  @default(0) @db.Decimal(10, 2)
+  lastResetDate   DateTime? // To track when monthly revenue was last reset
+  subscriptionId  String?   // Shopify subscription ID
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  shopInstallation ShopInstallation @relation(fields: [shop], references: [myshopifyDomain], map: "AppSubscription_shopInstallation_fkey")
+  shopifyStore    ShopifyStore @relation(fields: [shop], references: [myshopifyDomain], map: "AppSubscription_shopifyStore_fkey")
+}

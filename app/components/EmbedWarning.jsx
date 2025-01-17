@@ -1,31 +1,51 @@
-import React from "react";
-import { Banner, Text, BlockStack } from "@shopify/polaris";
-import { Link } from "@remix-run/react";
+import React, {useEffect, useState} from "react";
+import { Banner, Text, BlockStack,  SkeletonBodyText } from "@shopify/polaris";
+import { Link , useFetcher} from "@remix-run/react";
 
-export function EmbedWarning({ shop, isEmbed1Enabled, isEmbed2Enabled }) {
-  const isEmbedEnabled =
-    isEmbed1Enabled && isEmbed2Enabled;
-  if (isEmbedEnabled) {
+export function EmbedWarning() {
+  const fetcher = useFetcher();
+  const [isEmbed1Enabled, setisEmbed1Enabled] = useState(false);
+  const [isEmbed2Enabled, setisEmbed2Enabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [shop, setShop] = useState("");
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && !fetcher.data) {
+      fetcher.load("/api/embed-status");
+      setLoading(true);
+      console.log("fetcher", fetcher);
+    }
+    console.log("fetcher", fetcher);
+  }, [fetcher]);
+  useEffect(() => {
+    if (fetcher.data) {
+      setisEmbed1Enabled(fetcher.data.isEmbed1Enabled);
+      setisEmbed2Enabled(fetcher.data.isEmbed2Enabled);
+      setShop(fetcher.data.shop);
+      setLoading(false);
+    }
+  }, [fetcher.data]);
+
+  if (isEmbed1Enabled && isEmbed2Enabled) {
     return null;
   }
-  const action = !isEmbed1Enabled ? {
-    content: "Enable Volume Discount Embed",
-    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=${process.env.SHOPIFY_PROFITSUITE_ID}/volume-discount`,
-    target: "_blank",
-  } : null;
-  const secondAction = !isEmbed2Enabled ? {
-    content: "Enable Combo Discount Embed",
-    url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=${process.env.SHOPIFY_PROFITSUITE_ID}/combo-discount`,
-    target: "_blank",
-  } : null;
-  
-  return (
+  return !loading ? (
     <Banner
       title="Enable app embed to view discounts in your storefront"
       isEmbed1Enabled 
-      action={action}
+      action={{
+        content: "Enable Volume Discount Embed",
+        url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=c9dd21c1-710d-4b80-b128-2e82d2237ee9/volume-discount`,
+        target: "_blank",
+        disabled: isEmbed1Enabled
+      }}
     
-      secondaryAction={secondAction}
+      secondaryAction={{
+        content: "Enable Combo Discount Embed",
+        url: `https://${shop}/admin/themes/current/editor?context=apps&template=index&activateAppId=c9dd21c1-710d-4b80-b128-2e82d2237ee9/combo-discount`,
+        target: "_blank",
+        disabled: isEmbed2Enabled
+      }}
       tone="warning"
     >
       <BlockStack gap="200">
@@ -40,5 +60,7 @@ export function EmbedWarning({ shop, isEmbed1Enabled, isEmbed2Enabled }) {
         </Text>
       </BlockStack>
     </Banner>
+  ) : (
+    <SkeletonBodyText />
   );
 }

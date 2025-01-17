@@ -4,10 +4,9 @@ import {
   ButtonGroup, Text, Badge, Spinner, Modal, BlockStack
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 import { useNavigate, useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import prisma from "../db.server";
-import { fetchMainTheme,fetchShopUrl, fetchThemeContent } from "../server/themeCheck";
 import { json } from "@remix-run/node";
 import { EmbedWarning } from "../components/EmbedWarning";
 
@@ -39,8 +38,6 @@ async function updateDiscountStatus(discountId, type, newStatus) {
 }
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
-
-  
   // Fetch both volume and combo discounts
   const volumes = await prisma.volume.findMany({
     where: {
@@ -55,39 +52,9 @@ export const loader = async ({ request }) => {
     },
     orderBy: { createdAt: 'desc' }
   });
-  const shopUrl = await fetchShopUrl(request);
-  const shop = shopUrl.shop.myshopifyDomain;
-  const mainTheme = await fetchMainTheme(request);
-  console.log("This is the mainTheme", mainTheme);
-  let isEmbed1Enabled = "";
-  let isEmbed2Enabled = "";
-
-  if (mainTheme?.themes?.nodes?.length > 0) {
-    const themeId = mainTheme.themes.nodes[0].id;
-    const themeContent = await fetchThemeContent(request, themeId);
-
-    // Check if wishlist_embed block is present in theme
-    if (themeContent?.theme?.files?.nodes?.length > 0) {
-      try {
-        const settingsData = themeContent.theme.files.nodes[0].body.content;
-        const cleanSettings = JSON.stringify(settingsData); 
-        const moreClen = cleanSettings.replace(/\/\*[\s\S]*?\*\//g, '');
-        const moreCleann = JSON.parse(moreClen);
-        const finalSettings = JSON.parse(moreCleann);
-        console.log(finalSettings?.current?.blocks);
-        const volumeDiscount = Object.values(finalSettings?.current?.blocks).find(block => block.type.includes("volume-discount"));
-        const comboDiscount = Object.values(finalSettings?.current?.blocks).find(block => block.type.includes("combo-discount"));
-        console.log("This is the volumeDiscount", volumeDiscount);
-        isEmbed1Enabled = !volumeDiscount.disabled;
-        isEmbed2Enabled =  !comboDiscount.disabled;
-      } catch (error) {
-        console.error("Error parsing theme settings:", error);
-      }
-    }
-  }
-    console.log("This is the isEmbed1Enabled", isEmbed1Enabled);
-    console.log("This is the isEmbed2Enabled", isEmbed2Enabled);
-  return json({ volumes, combos, isEmbed1Enabled, isEmbed2Enabled, shop });
+  
+  
+  return json({ volumes, combos });
 };
 export const action = async ({ request }) => {
   
@@ -130,7 +97,7 @@ export const action = async ({ request }) => {
 export default function Index() {
   const navigate = useNavigate();
   const fetcher = useFetcher();
-  const { volumes, combos, isEmbed1Enabled, isEmbed2Enabled, shop } = useLoaderData();
+  const { volumes, combos} = useLoaderData();
   const [isLoading, setIsLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -248,7 +215,7 @@ export default function Index() {
       <Page>
       
             <BlockStack gap="600">
-                <EmbedWarning  shop={shop} isEmbed1Enabled={isEmbed1Enabled} isEmbed2Enabled={isEmbed2Enabled} />
+                <EmbedWarning  />
                 <Layout>
                   <Layout.Section>
                   
@@ -282,10 +249,16 @@ export default function Index() {
       }}
     >
       <BlockStack gap="600">
-       <EmbedWarning  shop={shop} isEmbed1Enabled={isEmbed1Enabled} isEmbed2Enabled={isEmbed2Enabled} />
+       <EmbedWarning  />
       <Layout>
         <Layout.Section>
           <Card>
+            <Text>Revenue</Text>
+          </Card>
+        </Layout.Section>
+        <Layout.Section>
+          <Card>
+
             <DataTable
               columnContentTypes={['text', 'text', 'text', 'text']}
               headings={['Offer Name', 'Status', 'Type', 'Actions']}
@@ -296,8 +269,6 @@ export default function Index() {
         </Layout.Section>
       </Layout>
       </BlockStack>
-
-      {/* Delete Confirmation Modal */}
       <Modal
         open={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

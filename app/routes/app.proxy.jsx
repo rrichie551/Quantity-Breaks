@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../server/shopify.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
