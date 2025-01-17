@@ -1,4 +1,4 @@
-import prisma from "../server/db.server";
+import prisma from "../db.server";
 
 export async function checkFirstInstall(shop) {
     try {

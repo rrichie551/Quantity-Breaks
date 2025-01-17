@@ -64,7 +64,8 @@ console.log(basePriceBase, "basePriceBase");
       redirect: 'manual',
       headers:{
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        'ngrok-skip-browser-warning': '69420'
       }
       }).then(res => res.json()).then(x =>{
         const result = x.message.volumes;
@@ -80,7 +81,7 @@ console.log(basePriceBase, "basePriceBase");
               form.style.display = 'none';
             });
             const forms = document.querySelectorAll('form[action="/cart/add"]');
-            const firstForm = forms[0];
+            const firstForm = forms[forms.length - 1];
             if (firstForm) {
               // Add optionsBundle to only the first form
               const bundleOptions = document.createElement('div');
@@ -123,7 +124,7 @@ console.log(basePriceBase, "basePriceBase");
   // Create main container
           const container = document.createElement('div');
           container.style.backgroundColor = 'transparent';
-          container.style.padding = '20px 0 0 0';
+          container.style.padding = '20px 0 20px 0';
 
           // Add block title
           const title = document.createElement('span');

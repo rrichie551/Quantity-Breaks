@@ -7,31 +7,29 @@ import {
     createShopifyStore
 } from "../server/shopInstallation.server";
 // import { handleGraphQLResponse } from "../utils/sharedUtils";
-import db from "../server/db.server";
+import db from "../db.server";
 import { InstallationEmail } from "./send-mail.server";
 
 export const checkInstall = async ({ admin }) => {
-    console.log("---CHECK INSTALL---");
-
     try {
         const shopData = await fetchShopInfo(admin);
-        console.log("This is the shopData", shopData);
+       
 
         const isFirstInstall = await checkFirstInstall(shopData.data.shop.myshopifyDomain);
-        console.log("This is the isFirstInstall", isFirstInstall);
+       
 
         const isScheduledUninstall = await checkScheduledUninstall(shopData.data.shop.myshopifyDomain);
-        console.log("This is the isScheduledUninstall", isScheduledUninstall);
+        
 
         if (isScheduledUninstall) {
             try {
-                console.log(`Cancelling scheduled uninstallation for shop: ${shopData.data.shop.myshopifyDomain}`);
+                
 
                 // Delete the scheduled uninstallation record
                 await db.scheduledUninstall.deleteMany({
                     where: { shop: shopData.data.shop.myshopifyDomain },
                 });
-                console.log(`Deleted scheduled uninstall record for shop: ${shopData.data.shop.myshopifyDomain}`);
+                
             } catch (error) {
                 console.error(`Error deleting scheduled uninstall record: ${error}`);
             }
@@ -47,7 +45,7 @@ export const checkInstall = async ({ admin }) => {
             }
             // Create new installation record
             const installation = await createShopInstallation(shopData.data.shop.url, shopData.data.shop.myshopifyDomain);
-            console.log("This is the installation", installation);
+            
 
             // Create new store record
             const storeData = await createShopifyStore(shopData.data, installation.id);
