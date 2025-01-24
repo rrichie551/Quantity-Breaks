@@ -16,28 +16,34 @@ import {
   InlineStack,
   Select,
   Spinner,
-  RangeSlider
+  Icon,
+  Badge,
+  Checkbox,
+  RangeSlider,
+  InlineError
 } from "@shopify/polaris";
-import {  useAppBridge } from "@shopify/app-bridge-react";
+import {  useAppBridge, Modal, TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../server/shopify.server";
 import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from "@remix-run/react";
-import { DeleteIcon, XIcon } from "@shopify/polaris-icons";
+import { DeleteIcon, XIcon,EditIcon } from "@shopify/polaris-icons";
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import prisma from "../db.server";
 import { json } from "@remix-run/node";
 import { QUERY } from "../api/QUERY";
 import { REGISTERV } from "../api/REGISTERV";
+import { GET_PRODUCTS } from "../api/GET_PRODUCTS";
 
 export const loader = async ({ request }) => {
- await authenticate.admin(request);
+ const {admin} = await authenticate.admin(request);
   const shopInfo = await fetchShopInfo(request);
-  return shopInfo.data.shop.currencyFormats.moneyFormat;
+  const products = await admin.graphql(GET_PRODUCTS);
+  const jsonProducts = await products.json();
+  return json({ currencyFormat:shopInfo.data.shop.currencyFormats.moneyFormat, products:jsonProducts})
 };
 
 export const action = async ({ request }) => {
   const { session, admin } = await authenticate.admin(request);
   const formData = await request.formData();
-  console.log("Form Data: ",JSON.parse(formData.get('formData')));
   
 
   if (request.method !== "POST") {
@@ -92,9 +98,7 @@ export const action = async ({ request }) => {
     const queryResponse = await query.json();
       const functionId = queryResponse.data.shopifyFunctions.edges.find(edge => edge.node.title === "ProfitSuite").node;
       const response = await admin.graphql(REGISTERV(functionId.id));
-     const jsonResponse = await response.json(); 
-    console.log("This is the error",jsonResponse.data.discountAutomaticAppCreate.userErrors);
-     console.log("This is the response",jsonResponse);
+      await response.json(); 
     return json({ success: true, volume });
 
   } catch (error) {
@@ -109,6 +113,7 @@ export default function VolumeDiscount() {
   const app = useAppBridge();
   const submit = useSubmit();
   const [step, setStep] = useState(1);
+  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     offerName: "",
@@ -116,59 +121,90 @@ export default function VolumeDiscount() {
     selections: [],
     discountType: "tiered",
     status: "draft",
+    layout: 'vertical',
     offers: [{
       discountType: 'percentage',
-      discountValue: '',
-      quantity: '1',
-      offerTitle: '',
+      discountValue: '10',
+      quantity: '2',
+      offerTitle: '1 Pair',
       discountLabel: '',
       tag: '',
+      active: false
+    },
+    {
+      discountType: 'percentage',
+      discountValue: '15',
+      quantity: '6',
+      offerTitle: '3 Pair',
+      discountLabel: '10% OFF',
+      tag: '',
+      active: false
+    },
+    {
+      discountType: 'percentage',
+      discountValue: '20',
+      quantity: '12',
+      offerTitle: '6 Pair',
+      discountLabel: '30% OFF',
+      tag: 'Most Popular',
       active: true
     }],
-    blockTitle: '',
+    settings: {
+      showUnitPrice: false,
+      showTotalPrice: true,
+      allowVariants: false,
+      displayBelowCart: false,
+      skipCart: false,
+      showComparePrice: true,
+      unitPriceLabel: '/each',
+    },
+    blockTitle: 'Bulk Discount',
     footerText1: 'Free Shipping in 3 Days',
     footerText2: 'Total',
     blockTitleSize: 20,
+    blockTitleColor: '#fd7a75',
+    offerTitleColor: '#fd7a75',
+    discountLabelColor: '#1c221e',
+    priceTitleColor: '#836161',
+    cpriceTitleColor: '#808080',
+    tagTitleColor: '#FFFFFF',
+    tagBackgroundColor: '#fd7a75',
+    footerTitleColor: '#fd7a75',
+    optionBorderColor: '#fd7a75',
+    optionBackgroundColor: '#f5e5e6',
+    optionNonSelectedBackgroundColor: '#ffffff',
     blockTitleStyle: 'normal',
-    blockTitleColor: '#000000',
     offerTitleSize: 13,
     offerTitleStyle: 'normal',
-    offerTitleColor: '#000000',
     discountLabelSize: 10,
     discountLabelStyle: 'normal',
-    discountLabelColor: '#000000',
     priceTitleSize: 10,
     priceTitleStyle: 'normal',
-    priceTitleColor: '#000000',
     cpriceTitleSize: 8,
     cpriceTitleStyle: 'normal',
-    cpriceTitleColor: '#808080',
     tagTitleSize: 10,
     tagTitleStyle: 'normal',
-    tagTitleColor: '#FFFFFF',
-    tagBackgroundColor: '#000000',
     footerTitleSize: 10,
     footerTitleStyle: 'normal',
-    footerTitleColor: '#000000',
-    optionBorderColor: '#000000',
-    optionBackgroundColor: '#ffffff',
-    optionNonSelectedBackgroundColor: '#ffffff',
     borderWidth: 1,
     borderRadius: 8
   });
-  const currencyFormat = useLoaderData();
+  const {currencyFormat, products} = useLoaderData();
   const currencySymbol = currencyFormat.split('{{')[0].trim();
   const navigation = useNavigation();
   useEffect(() => {
     if (action?.success) {
       app.toast.show("Discount Created Successfully");
       setIsLoading(false);
+      navigate("/app");
+     
+      
     } else if (!action?.success) {
       setIsLoading(false);
     }
-  }, [action, app]); // This will give us "Rs."
+  }, [action, app,setIsLoading,navigate]);
+ 
 
-  // Updated Resource Picker handlers
   const handleProductsPicker = useCallback(async () => {
     try {
       const resourcePicker = await app.resourcePicker({
@@ -178,16 +214,17 @@ export default function VolumeDiscount() {
         multiple: true,
         selectionIds: formData.selections.map(product => ({ id: product.id }))
       });
-
+      console.log("Select: ",resourcePicker);
       if (resourcePicker && resourcePicker.length > 0) {
         const selectedProducts = resourcePicker.map(product => ({
           id: product.id,
           title: product.title,
           handle: product.handle,
           image: product.images[0] || null,
-          price: product.variants[0].price
+          price: product.variants[0].price,
+          options: product.options
         }));
-
+        console.log("Selected products: " + selectedProducts);
         setFormData(prev => ({
           ...prev,
           selections: selectedProducts
@@ -195,7 +232,6 @@ export default function VolumeDiscount() {
       }
     } catch (error) {
       console.error("Error selecting products:", error);
-      // Optionally show an error message to the user
     }
   }, [app,formData]);
 
@@ -207,12 +243,14 @@ export default function VolumeDiscount() {
         multiple: false,
         selectionIds: formData.selections.map(collection => ({ id: collection.id }))
       });
-
+      console.log("This is a collection:", resourcePicker);
       if (resourcePicker && resourcePicker.length > 0) {
         const selectedCollection = resourcePicker.map(product => ({
             id: product.id,
             title: product.title,
-            productsCount: product.productsCount
+            productsCount: product.productsCount,
+            price: products.data.products.edges[0].node.priceRangeV2.maxVariantPrice.amount
+            
           }));
 
         setFormData(prev => ({
@@ -222,7 +260,6 @@ export default function VolumeDiscount() {
       }
     } catch (error) {
       console.error("Error selecting collection:", error);
-      // Optionally show an error message to the user
     }
   }, [app,formData]);
 
@@ -242,8 +279,7 @@ export default function VolumeDiscount() {
       offers: prev.offers.filter((_, index) => index !== indexToDelete)
     }));
   };
-
-  // Discount Type Options for Step 2
+  
   const discountTypes = [
     {
         id: "basic",
@@ -310,11 +346,52 @@ export default function VolumeDiscount() {
       optionNonSelectedBackgroundColor: '#ffffff'
     }
   };
+  const themeColorMappings = {
+    theme1: {
+      blockTitleColor: '#4289ff',
+      offerTitleColor: '#4289ff',
+      discountLabelColor: '#1c221e',
+      priceTitleColor: '#4289ff',
+      cpriceTitleColor: '#808080',
+      tagTitleColor: '#FFFFFF',
+      tagBackgroundColor: '#4289ff',
+      footerTitleColor: '#4289ff',
+      optionBorderColor: '#4289ff',
+      optionBackgroundColor: '#f9faff',
+      optionNonSelectedBackgroundColor: '#ffffff'
+    },
+    theme2: {
+      blockTitleColor: '#ff6b82',
+      offerTitleColor: '#ff6b82',
+      discountLabelColor: '#1c221e',
+      priceTitleColor: '#ff6b82',
+      cpriceTitleColor: '#808080',
+      tagTitleColor: '#FFFFFF',
+      tagBackgroundColor: '#ff6b82',
+      footerTitleColor: '#ff6b82',
+      optionBorderColor: '#ff6b82',
+      optionBackgroundColor: '#fff9fa',
+      optionNonSelectedBackgroundColor: '#ffffff'
+    },
+    theme3: {
+      blockTitleColor: '#237f00',
+      offerTitleColor: '#237f00',
+      discountLabelColor: '#1c221e',
+      priceTitleColor: '#237f00',
+      cpriceTitleColor: '#808080',
+      tagTitleColor: '#FFFFFF',
+      tagBackgroundColor: '#237f00',
+      footerTitleColor: '#237f00',
+      optionBorderColor: '#237f00',
+      optionBackgroundColor: '#f4fbf9',
+      optionNonSelectedBackgroundColor: '#ffffff'
+    }
+  };
   const discountTemplates = {
     basic: [
       {
         discountType: 'percentage',
-        discountValue: '0',
+        discountValue: '10',
         quantity: '1',
         offerTitle: '1 Item',
         discountLabel: '',
@@ -323,7 +400,7 @@ export default function VolumeDiscount() {
       },
       {
         discountType: 'percentage',
-        discountValue: '20',
+        discountValue: '15',
         quantity: '2',
         offerTitle: '2 Items',
         discountLabel: '20% OFF',
@@ -332,7 +409,7 @@ export default function VolumeDiscount() {
       },
       {
         discountType: 'percentage',
-        discountValue: '30',
+        discountValue: '20',
         quantity: '3',
         offerTitle: '3 Items',
         discountLabel: '30% OFF',
@@ -343,7 +420,7 @@ export default function VolumeDiscount() {
     tiered: [
       {
         discountType: 'percentage',
-        discountValue: '0',
+        discountValue: '10',
         quantity: '2',
         offerTitle: '1 Pair',
         discountLabel: '',
@@ -352,7 +429,7 @@ export default function VolumeDiscount() {
       },
       {
         discountType: 'percentage',
-        discountValue: '10',
+        discountValue: '15',
         quantity: '6',
         offerTitle: '3 Pair',
         discountLabel: '10% OFF',
@@ -361,7 +438,7 @@ export default function VolumeDiscount() {
       },
       {
         discountType: 'percentage',
-        discountValue: '30',
+        discountValue: '20',
         quantity: '12',
         offerTitle: '6 Pair',
         discountLabel: '30% OFF',
@@ -372,47 +449,134 @@ export default function VolumeDiscount() {
     bxgy: [
       {
         discountType: 'percentage',
-        discountValue: '15',
-        quantity: '25',
-        offerTitle: 'Bulk Deal 1',
-        discountLabel: '15% Off',
-        tag: 'bulk-15',
+        discountValue: '50',
+        quantity: '2',
+        offerTitle: 'Buy 1 Get 1 Free',
+        discountLabel: '50% Off',
+        tag: 'Most Popular',
         active: true
       },
       {
         discountType: 'percentage',
-        discountValue: '25',
-        quantity: '50',
-        offerTitle: 'Bulk Deal 2',
-        discountLabel: '25% Off',
-        tag: 'bulk-25',
-        active: true
+        discountValue: '50',
+        quantity: '4',
+        offerTitle: 'Buy 2 Get 2 Free',
+        discountLabel: '',
+        tag: '',
+        active: false
       },
       {
         discountType: 'percentage',
-        discountValue: '35',
-        quantity: '100',
-        offerTitle: 'Bulk Deal 3',
-        discountLabel: '35% Off',
-        tag: 'bulk-35',
-        active: true
+        discountValue: '50',
+        quantity: '6',
+        offerTitle: 'Buy 3 Get 3 Free',
+        discountLabel: '',
+        tag: '',
+        active: false
       }
     ]
   };
 
-  // Handler for saving/publishing
+  const validateForm = (data) => {
+    var errors = {};
+  
+    // Validate offer name
+    if (!data.offerName?.trim()) {
+      errors.offerName = "Offer name is required";
+    }
+  
+    // Validate selections
+    if (!data.selections || data.selections.length === 0) {
+      errors.selections = "Please select at least one product or collection";
+    }
+  
+    // Validate offers
+    data.offers.forEach((offer, index) => {
+      if (!offer.quantity || parseInt(offer.quantity) <= 0) {
+        if (!errors.offers) errors.offers = {};
+        if (!errors.offers[index]) errors.offers[index] = {};
+        errors.offers[index].quantity = "Quantity must be greater than 0";
+      }
+      if (!offer.offerTitle?.trim()) {
+        if (!errors.offers) errors.offers = {};
+        if (!errors.offers[index]) errors.offers[index] = {};
+        errors.offers[index].offerTitle = "Offer title is required";
+      }
+      const hasFixedDiscount = data.offers.some(offer => offer.discountType === 'fixed');
+      if (hasFixedDiscount) {
+        if (data.applyTo === "PRODUCTS" && offer.discountType === 'fixed') {
+          if (!errors.offers) errors.offers = {};
+          if (!errors.offers[index]) errors.offers[index] = {};
+          if (data.selections.length > 1) {
+            errors.offers[index].discountType = "Fixed price discount can only be applied to a single product";
+          }
+          else{
+            errors.offers = {};
+            errors= {};
+          }
+        } else if (data.applyTo === "COLLECTIONS" && offer.discountType === 'fixed') {
+          if (!errors.offers) errors.offers = {};
+          if (!errors.offers[index]) errors.offers[index] = {};
+          errors.offers[index].discountType = "Fixed price discount cannot be applied to collections";
+        }
+        
+      }
+        
+     
+  
+      if (!offer.discountValue?.trim()) {
+        if (!errors.offers) errors.offers = {};
+        if (!errors.offers[index]) errors.offers[index] = {};
+        errors.offers[index].discountValue = "Discount value is required";
+      } else {
+        const value = parseFloat(offer.discountValue);
+        switch (offer.discountType) {
+          case 'percentage':
+            if (value < 0) {
+              if (!errors.offers) errors.offers = {};
+              if (!errors.offers[index]) errors.offers[index] = {};
+              errors.offers[index].discountValue = "Percentage cannot be negative";
+            } else if (value > 100) {
+              if (!errors.offers) errors.offers = {};
+              if (!errors.offers[index]) errors.offers[index] = {};
+              errors.offers[index].discountValue = "Percentage cannot exceed 100%";
+            }
+            break;
+          case 'flat-per-item':
+            if (value <= 0) {
+              if (!errors.offers) errors.offers = {};
+              if (!errors.offers[index]) errors.offers[index] = {};
+              errors.offers[index].discountValue = "Amount must be greater than 0";
+            }
+            break;
+        }
+      }
+    });
+   
+  
+    return errors;
+  };
+
   const handleSave = async (status) => {
+    const validationErrors = validateForm(formData);
+
+
+  
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      app.toast.show("Operation Failed", { isError: true });
+      console.log(validationErrors);
+      return;
+    }
     const formDataToSend = new FormData();
     
-    // Create a copy of formData with updated status
+   
     const updatedFormData = {
       ...formData,
-      status: status // Add the status to the form data
+      status: status 
     };
     
-    console.log("Updated formData: ", updatedFormData);
     
-    // Append the updated data to FormData
     formDataToSend.append("formData", JSON.stringify(updatedFormData));
     setIsLoading(true);
     
@@ -424,23 +588,50 @@ export default function VolumeDiscount() {
 
 
   const calculateDiscountedPrice = (offer, originalPrice) => {
-    const basePrice = offer.quantity * originalPrice;
+    let basePrice = originalPrice;
+    if (!formData?.settings?.showUnitPrice){
+       basePrice = offer.quantity * originalPrice;
+  }
     
     switch (offer.discountType) {
       case 'percentage':
-        // Subtract percentage discount from base price
+       
         return basePrice - (basePrice * (parseFloat(offer.discountValue) / 100));
         
       case 'flat':
-        // Subtract flat discount from base price
+        
         return basePrice - parseFloat(offer.discountValue);
         
       case 'flat-per-item':
-        // Subtract flat discount per item (multiply discount by quantity)
+       
         return basePrice - (parseFloat(offer.discountValue) * offer.quantity);
         
       case 'fixed':
-        // Fixed price per item (multiply fixed price by quantity)
+        
+        return parseFloat(offer.discountValue);
+        
+      default:
+        return basePrice;
+    }
+  };
+  const calculateDiscountedPrice2 = (offer, originalPrice) => {
+    const basePrice = offer.quantity * originalPrice;
+
+    switch (offer.discountType) {
+      case 'percentage':
+       
+        return basePrice - (basePrice * (parseFloat(offer.discountValue) / 100));
+        
+      case 'flat':
+        
+        return basePrice - parseFloat(offer.discountValue);
+        
+      case 'flat-per-item':
+       
+        return basePrice - (parseFloat(offer.discountValue) * offer.quantity);
+        
+      case 'fixed':
+        
         return parseFloat(offer.discountValue);
         
       default:
@@ -458,6 +649,137 @@ export default function VolumeDiscount() {
     }));
   };
 
+
+    const discountIcons = {
+      tiered: {
+        svg: <svg xmlns="http://www.w3.org/2000/svg" fill="#ff8985" width="24px" height="24px" viewBox="-12.8 -12.8 153.60 153.60">
+          <g>
+            <rect height="8" width="64" x="53" y="17"/>
+            <rect height="8" width="64" x="53" y="60"/>
+            <rect height="8" width="64" x="53" y="103"/>
+            <path d="M21,121c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,99.3,7,107S13.3,121,21,121z M21,101c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6S17.7,101,21,101z"/>
+            <path d="M21,78c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,56.3,7,64S13.3,78,21,78z M21,58c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6S17.7,58,21,58z"/>
+            <path d="M21,35c7.7,0,14-6.3,14-14S28.7,7,21,7S7,13.3,7,21S13.3,35,21,35z M21,15c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6S17.7,15,21,15z"/>
+          </g>
+        </svg>,
+        color: "#ff8985",
+        text: "Bulk Discount"
+      },
+      basic: {
+        svg: 
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#25c16e" width="24px" height="24px" viewBox="-12.8 -12.8 153.60 153.60" id="Layer_1" version="1.1" xml:space="preserve" stroke="#25c16e">
+
+        <g id="SVGRepo_bgCarrier" stroke-width="0"/>
+
+        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <g id="SVGRepo_iconCarrier"> <g> <rect height="8" width="64" x="53" y="17"/> <rect height="8" width="64" x="53" y="60"/> <rect height="8" width="64" x="53" y="103"/> <path d="M21,121c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,99.3,7,107S13.3,121,21,121z M21,101c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,101,21,101z"/> <path d="M21,78c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,56.3,7,64S13.3,78,21,78z M21,58c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,58,21,58z"/> <path d="M21,35c7.7,0,14-6.3,14-14S28.7,7,21,7S7,13.3,7,21S13.3,35,21,35z M21,15c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,15,21,15z"/> </g> </g>
+
+        </svg>
+        ,
+        color: "#25c16e",
+        text: "Custom Discount"
+      },
+      bxgy: {
+        svg: 
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#1c221e" width="24px" height="24px" viewBox="-12.8 -12.8 153.60 153.60" id="Layer_1" version="1.1" xml:space="preserve" stroke="##25c16e">
+
+        <g id="SVGRepo_bgCarrier" stroke-width="0"/>
+
+        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <g id="SVGRepo_iconCarrier"> <g> <rect height="8" width="64" x="53" y="17"/> <rect height="8" width="64" x="53" y="60"/> <rect height="8" width="64" x="53" y="103"/> <path d="M21,121c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,99.3,7,107S13.3,121,21,121z M21,101c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,101,21,101z"/> <path d="M21,78c7.7,0,14-6.3,14-14s-6.3-14-14-14S7,56.3,7,64S13.3,78,21,78z M21,58c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,58,21,58z"/> <path d="M21,35c7.7,0,14-6.3,14-14S28.7,7,21,7S7,13.3,7,21S13.3,35,21,35z M21,15c3.3,0,6,2.7,6,6s-2.7,6-6,6s-6-2.7-6-6 S17.7,15,21,15z"/> </g> </g>
+
+        </svg>
+        ,
+        color: "#1c221e",
+        text: "BOGO Discount"
+      }
+    };
+    const themeColors = {
+      theme1: {
+        border: '#4289ff',
+        fill: '#4289ff', 
+        background: '#f9faff'
+      },
+      theme2: {
+        border: '#ff6b82',
+        fill: '#ff6b82',
+        background: '#fff9fa'
+      },
+      theme3: {
+        border: '#237f00',
+        fill: '#237f00',
+        background: '#f4fbf9'
+      }
+    };
+
+    useEffect(() => {
+      if (formData.layout === 'horizontal') {
+        setSelectedTheme('horizontal1');
+      } else {
+        setSelectedTheme('theme1');
+      }
+    }, [formData.layout]);
+    const icon = discountIcons[formData.discountType];
+
+  const [detailsModal, setDetailsModal] = useState(false);
+  const [detailsModal2, setDetailsModal2] = useState(false);
+  const handleDetailsModal = useCallback(
+    () => setDetailsModal((open) => !open),
+    [],
+  );
+  const handleDetailsModal2 = useCallback(
+    () => setDetailsModal2((open) => !open),
+    [],
+  );
+  const handleDetailsModal3 = useCallback(
+    () => shopify.modal.show('my-modal'),
+    [],
+  );
+  const [selectedTheme, setSelectedTheme] = useState('theme1');
+
+    const handleThemeChange = (theme) => {
+      setSelectedTheme(theme);
+      if (formData.layout === 'vertical') {
+        setFormData(prev => ({
+          ...prev,
+          blockTitleColor: themeColorMappings[theme].blockTitleColor,
+          offerTitleColor: themeColorMappings[theme].offerTitleColor,
+          discountLabelColor: themeColorMappings[theme].discountLabelColor,
+          priceTitleColor: themeColorMappings[theme].priceTitleColor,
+          cpriceTitleColor: themeColorMappings[theme].cpriceTitleColor,
+          tagTitleColor: themeColorMappings[theme].tagTitleColor,
+          tagBackgroundColor: themeColorMappings[theme].tagBackgroundColor,
+          footerTitleColor: themeColorMappings[theme].footerTitleColor,
+          optionBorderColor: themeColorMappings[theme].optionBorderColor,
+          optionBackgroundColor: themeColorMappings[theme].optionBackgroundColor,
+          optionNonSelectedBackgroundColor: themeColorMappings[theme].optionNonSelectedBackgroundColor
+        }));
+      }
+    };
+  const handleLayoutChange = (newLayout) => {
+    setFormData(prev => ({
+      ...prev,
+      layout: newLayout
+    }));
+    if(newLayout === 'horizontal'){
+      setFormData(prev =>({
+        ...prev,
+        blockTitleColor: styleTemplates[formData.discountType].blockTitleColor,
+        offerTitleColor: styleTemplates[formData.discountType].offerTitleColor,
+        discountLabelColor: styleTemplates[formData.discountType].discountLabelColor,
+        priceTitleColor: styleTemplates[formData.discountType].priceTitleColor,
+        cpriceTitleColor: styleTemplates[formData.discountType].cpriceTitleColor,
+        tagTitleColor: styleTemplates[formData.discountType].tagTitleColor,
+        tagBackgroundColor: styleTemplates[formData.discountType].tagBackgroundColor,
+        footerTitleColor: styleTemplates[formData.discountType].footerTitleColor,
+        optionBorderColor: styleTemplates[formData.discountType].optionBorderColor,
+        optionBackgroundColor: styleTemplates[formData.discountType].optionBackgroundColor,
+        optionNonSelectedBackgroundColor: styleTemplates[formData.discountType].optionNonSelectedBackgroundColor
+      }))
+    }
+  };
   const renderStep1 = () => (
         <Card>
           <BlockStack gap="500">
@@ -465,6 +787,7 @@ export default function VolumeDiscount() {
               <TextField
                 label="Offer Name"
                 value={formData.offerName}
+                error={errors.offerName}
                 onChange={(value) => setFormData(prev => ({ ...prev, offerName: value }))}
                 autoComplete="off"
               />
@@ -650,6 +973,546 @@ export default function VolumeDiscount() {
      <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}} className="layoutGrid">
         <BlockStack gap="500">
           {/* Offers Section */}
+         
+                    <Box
+                    padding="400"
+                    background="bg-surface"
+                    borderRadius="200"
+                    shadow="200"
+                    borderColor="#dedede"
+                    borderStyle="solid"
+                    position="relative"
+                  >
+                    <BlockStack gap="200">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent:"space-between",
+                        gap: "50px",
+                      }}
+                    >
+                      <>
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            opacity: detailsModal ? "1" : "0",
+                            zIndex: detailsModal ? "1000" : "-1",
+                            width: "100%",
+                            transition: "0.3s ease all",
+                            boxShadow: "0 1.25rem 1.25rem -.5rem #1a1a1a47",
+                          }}
+                          className="overlay"
+                        >
+                          <Card>
+                         
+                            <BlockStack gap="600">
+                            <Text variant="headingMd" as="h6">
+                            Offer Name
+                              </Text>
+                              <TextField
+                                value={formData.offerName}
+                                error={errors.offerName}
+                                onChange={(value) => setFormData(prev => ({ ...prev, offerName: value }))}
+                                autoComplete="off"
+                              />
+                              <InlineStack gap="200" align="end">
+                                <Button onClick={handleDetailsModal}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={handleDetailsModal}
+                                  variant="primary"
+                                >
+                                  Save
+                                </Button>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+                        <Modal id="my-modal" variant="large">
+                       
+                        <TitleBar title="Select Discount Type"></TitleBar>
+                         
+                            <BlockStack gap="600">
+                           
+                             <div style={{ display: "flex", alignItems:"stretch", gap:"10px", justifyContent:"space-between",padding:"10px" }}>
+              {discountTypes.map((type) => (
+               
+                  <Box
+                    padding="400"
+                    key={type.id}
+                    background={formData.discountType === type.id ? "bg-surface-selected" : "bg-surface"}
+                    borderWidth="1"
+                    borderRadius="200"
+                    borderColor={formData.discountType === type.id ? "border-success" : "border"}
+                    onClick={() => 
+                      setFormData({
+                        ...formData, 
+                        discountType: type.id, 
+                        blockTitle: discountTitles[type.id], 
+                        offers: discountTemplates[type.id],
+                        blockTitleColor: styleTemplates[type.id].blockTitleColor,
+                        offerTitleColor: styleTemplates[type.id].offerTitleColor,
+                        discountLabelColor: styleTemplates[type.id].discountLabelColor,
+                        priceTitleColor: styleTemplates[type.id].priceTitleColor,
+                        cpriceTitleColor: styleTemplates[type.id].cpriceTitleColor,
+                        tagTitleColor: styleTemplates[type.id].tagTitleColor,
+                        tagBackgroundColor: styleTemplates[type.id].tagBackgroundColor,
+                        footerTitleColor: styleTemplates[type.id].footerTitleColor,
+                        optionBorderColor: styleTemplates[type.id].optionBorderColor,
+                        optionBackgroundColor: styleTemplates[type.id].optionBackgroundColor,
+                        optionNonSelectedBackgroundColor: styleTemplates[type.id].optionNonSelectedBackgroundColor
+                      })}
+                    as="button"
+                  >
+                    <BlockStack gap="400">
+                      <img
+                        src={type.image}
+                        alt={type.title}
+                        style={{ width: "100%", height: "300px" }}
+                      />
+                      <Text variant="headingSm" as="h3">{type.title}</Text>
+                      <Text variant="bodyMd" as="p">{type.description}</Text>
+              
+                    </BlockStack>
+                  </Box>
+                
+              ))}
+              </div>
+           
+                            </BlockStack>
+                         
+                          
+                          </Modal>
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            opacity: detailsModal2 ? "1" : "0",
+                            zIndex: detailsModal2 ? "1000" : "-1",
+                            width: "100%",
+                            margin: "0 auto",
+                            right: "0",
+                            transition: "0.3s ease all",
+                            boxShadow: "0 1.25rem 1.25rem -.5rem #1a1a1a47",
+                          }}
+                          className="overlay"
+                        >
+                          <Card>
+                            <BlockStack gap="600">
+                              <BlockStack gap="400">
+                              <Text variant="headingMd" as="h6">
+                                Apply Offer To
+                              </Text>
+                              <Box>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '20px', 
+                    alignItems: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    <RadioButton
+                      label="Products"
+                      checked={formData.applyTo === "PRODUCTS"}
+                      id="products-radio"
+                      name="apply-to"
+                      onChange={() => setFormData(prev => ({ 
+                        ...prev, 
+                        applyTo: "PRODUCTS", 
+                        selections: [] 
+                      }))}
+                    />
+                    
+                    <RadioButton
+                      label="Collections"
+                      checked={formData.applyTo === "COLLECTIONS"}
+                      id="collections-radio"
+                      name="apply-to"
+                      onChange={() => setFormData(prev => ({ 
+                        ...prev, 
+                        applyTo: "COLLECTIONS", 
+                        selections: [] 
+                      }))}
+                    />
+                  </div>
+                              </Box>
+                              {formData.applyTo === "PRODUCTS" && (
+                                    <BlockStack gap="300">
+                                      <Button variant='primary' onClick={handleProductsPicker}>
+                                        Select Products {formData.selections.length > 0 ? `(${formData.selections.length} selected)` : ''}
+                                      </Button>
+                                      {formData.selections.length > 0 && (
+                                        <Box padding="300" background="bg-subdued" borderRadius="100">
+                                          <BlockStack gap="300">
+                                  <ResourceList
+                                    resourceName={{
+                                      singular: 'Product',
+                                      plural: 'Products'
+                                    }}
+                                    items={formData.selections}
+                                    renderItem={(product) => (
+                                      <ResourceItem
+                                        id={product.id}
+                                        accessibilityLabel={product.title}
+                                        media={
+                                          <Avatar
+                                            customer
+                                            size="md"
+                                            name={product.title}
+                                            source={product.image?.originalSrc || product.image?.url}
+                                          />
+                                        }
+                                      >
+                                        <InlineStack align="space-between">
+                                          <BlockStack>
+                                            <Text variant="bodyMd" fontWeight="bold">
+                                              {product.title}
+                                            </Text>
+                                          </BlockStack>
+                                          <Button
+                                            icon={DeleteIcon}
+                                            tone="critical"
+                                            onClick={() => handleDeleteSelection(product.id)}
+                                          />
+                                        </InlineStack>
+                                      </ResourceItem>
+                                    )}
+                                  />
+                              </BlockStack>
+                                        </Box>
+                                      )}
+                                    </BlockStack>
+                              )}
+                              {formData.applyTo === "COLLECTIONS" && (
+                                    <BlockStack gap="300">
+                                      <Button  variant='primary' onClick={handleCollectionsPicker}>
+                                        Select Collection
+                                      </Button>
+                                      {formData.selections.length > 0 && (
+                                      
+                                          <ResourceItem
+                                            id={formData.selections[0].id}
+                                            accessibilityLabel={formData.selections[0].title}
+                                            media={
+                                              <Avatar customer size="md" name={formData.selections[0].title} />
+                                            }
+                                          >
+                                            <InlineStack align="space-between">
+                                              <BlockStack>
+                                                <Text variant="bodyMd" fontWeight="bold">
+                                                  {formData.selections[0].title}
+                                                </Text>
+                                                <Text variant="bodySm" color="subdued">
+                                                {formData.selections[0].productsCount}
+                                                </Text>
+                                              </BlockStack>
+                                              <Button
+                                                icon={DeleteIcon}
+                                                tone="critical"
+                                                onClick={() => handleDeleteSelection(formData.selections[0].id)}
+                                              />
+                                            </InlineStack>
+                                          </ResourceItem>
+                                      
+                                      )}
+                                    </BlockStack>
+                              )}
+                              </BlockStack>
+                              <InlineStack gap="200" align="end">
+                                <Button onClick={handleDetailsModal2}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={handleDetailsModal2}
+                                  variant="primary"
+                                >
+                                  Save
+                                </Button>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+                        <div
+                          onClick={handleDetailsModal}
+                          style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: "5px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Offer Name
+                            </Text>
+                            <Icon source={EditIcon}></Icon>
+                          </div>
+
+                          <Text variant="headingXs" as="h6">
+                             {formData.offerName}
+                          </Text>
+                        </div>
+                        <div
+                          onClick={handleDetailsModal2}
+                          style={{ cursor: "pointer",display: "flex", flexDirection: "column", gap: "5px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Offer Applied On
+                            </Text>
+                            <Icon source={EditIcon}></Icon>
+                          </div>
+
+                          <Text variant="headingXs" as="h6">
+                            {formData.applyTo === "PRODUCTS" ? "Products ": "Collections" } Selected <Badge tone="success">{formData.selections.length}</Badge>
+                          </Text>
+                        </div>
+                        <div
+                          onClick={handleDetailsModal3}
+                          style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: "5px"}}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Selected Template
+                            </Text>
+                            <Icon source={EditIcon}></Icon>
+                          </div>
+
+                          <Text variant="headingXs" as="h6">
+                             
+                              <div style={{display: "flex", alignItems: "center", gap: "5px"}}>
+                                  {icon.svg}
+                                  <span style={{color: icon.color}}>{icon.text}</span>
+                              </div>
+                            
+                          </Text>
+                        </div>
+                      </>
+                    </div>
+                  {errors.selections &&  <InlineError message={errors.selections}/>}  
+                  {errors.offerName && <InlineError message={errors.offerName}/>}
+                  </BlockStack>
+                  </Box>
+                  <Box
+                    padding="400"
+                    background="bg-surface"
+                    borderRadius="200"
+                    shadow="200"
+                    borderColor="#dedede"
+                    borderStyle="solid"
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "50px",
+                      }}
+                    >
+                      <>
+                        
+                        <div
+                          
+                          style={{ display: "flex", flexDirection: "column", gap: "5px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              width: "fit-content"
+                            }}
+                          >
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Template Layout
+                            </Text>
+                            <Icon source={EditIcon}></Icon>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '16px' }}>
+                            <div
+                              role="button"
+                              onClick={() => handleLayoutChange('vertical')}
+                              style={{
+                                padding: '5px',
+                                border: `2px solid ${formData.layout === 'vertical' ? '#000000' : '#e1e3e5'}`,
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="4" y="4" width="16" height="4" fill={formData.layout === 'vertical' ? '#000000' : '#8c9196'} />
+                                <rect x="4" y="10" width="16" height="4" fill={formData.layout === 'vertical' ? '#000000' : '#8c9196'} />
+                                <rect x="4" y="16" width="16" height="4" fill={formData.layout === 'vertical' ? '#000000' : '#8c9196'} />
+                              </svg>
+                              <Text variant="bodySm" as="p" fontWeight={formData.layout === 'vertical' ? 'bold' : 'regular'}>
+                                Vertical
+                              </Text>
+                            </div>
+
+                            <div
+                              role="button"
+                              onClick={() => handleLayoutChange('horizontal')}
+                              style={{
+                                padding: '5px',
+                                border: `2px solid ${formData.layout === 'horizontal' ? '#000000' : '#e1e3e5'}`,
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="2" y="6" width="6" height="12" fill={formData.layout === 'horizontal' ? '#000000' : '#8c9196'} />
+                                <rect x="9" y="6" width="6" height="12" fill={formData.layout === 'horizontal' ? '#000000' : '#8c9196'} />
+                                <rect x="16" y="6" width="6" height="12" fill={formData.layout === 'horizontal' ? '#000000' : '#8c9196'} />
+                              </svg>
+                              <Text variant="bodySm" as="p" fontWeight={formData.layout === 'horizontal' ? 'bold' : 'regular'}>
+                                Horizontal
+                              </Text>
+                            </div>
+                          </div>
+                        </div>
+                        <div
+                         
+                          style={{ display: "flex", flexDirection: "column", gap: "5px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              width: "fit-content"
+                            }}
+                          >
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Choose a Theme
+                            </Text>
+                            <Icon source={EditIcon}></Icon>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '16px' }}>
+                        {formData.layout === 'vertical' ? (
+                             // Vertical themes
+                                <>
+                                <div
+                                  role="button"
+                                  onClick={() => handleThemeChange('theme1')}
+                                  style={{
+                                    padding: '5px',
+                                    border: `2px solid ${selectedTheme === 'theme1' ? themeColors.theme1.border : '#e1e3e5'}`,
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    backgroundColor: selectedTheme === 'theme1' ? themeColors.theme1.background : '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <rect width="24" height="8" fill={selectedTheme === 'theme1' ? themeColors.theme1.fill : '#8c9196'} />
+                                    <rect y="10" width="24" height="8" fill={selectedTheme === 'theme1' ? themeColors.theme1.fill : '#8c9196'} />
+                                    <rect y="20" width="24" height="4" fill={selectedTheme === 'theme1' ? themeColors.theme1.fill : '#8c9196'} />
+                                  </svg>
+                                </div>
+
+                                <div
+                                  role="button"
+                                  onClick={() => handleThemeChange('theme2')}
+                                  style={{
+                                    padding: '5px',
+                                    border: `2px solid ${selectedTheme === 'theme2' ? themeColors.theme2.border : '#e1e3e5'}`,
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    backgroundColor: selectedTheme === 'theme2' ? themeColors.theme2.background : '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                   
+                                  }}
+                                >
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <rect width="24" height="6" fill={selectedTheme === 'theme2' ? themeColors.theme2.fill : '#8c9196'} />
+                                    <rect y="8" width="24" height="6" fill={selectedTheme === 'theme2' ? themeColors.theme2.fill : '#8c9196'} />
+                                    <rect y="16" width="24" height="6" fill={selectedTheme === 'theme2' ? themeColors.theme2.fill : '#8c9196'} />
+                                  </svg>
+                                  
+                                </div>
+
+                                <div
+                                  role="button"
+                                  onClick={() => handleThemeChange('theme3')}
+                                  style={{
+                                    padding: '5px',
+                                    border: `2px solid ${selectedTheme === 'theme3' ? themeColors.theme3.border : '#e1e3e5'}`,
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    backgroundColor: selectedTheme === 'theme3' ? themeColors.theme3.background : '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <rect width="24" height="4" fill={selectedTheme === 'theme3' ? themeColors.theme3.fill : '#8c9196'} />
+                                    <rect y="6" width="24" height="4" fill={selectedTheme === 'theme3' ? themeColors.theme3.fill : '#8c9196'} />
+                                    <rect y="12" width="24" height="4" fill={selectedTheme === 'theme3' ? themeColors.theme3.fill : '#8c9196'} />
+                                    <rect y="18" width="24" height="4" fill={selectedTheme === 'theme3' ? themeColors.theme3.fill : '#8c9196'} />
+                                  </svg>
+                                </div>
+                                </>
+                           ) : (
+                              // Horizontal theme
+                                <div
+                                  role="button"
+                                  onClick={() => handleThemeChange('horizontal1')}
+                                  style={{
+                                    padding: '5px',
+                                    border: `2px solid ${selectedTheme === 'horizontal1' ? formData.optionBorderColor : '#e1e3e5'}`,
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    backgroundColor: selectedTheme === 'horizontal1' ? formData.optionBackgroundColor : '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <rect x="0" y="8" width="8" height="8" fill={selectedTheme === 'horizontal1' ? formData.optionBorderColor : '#8c9196'} />
+                                    <rect x="10" y="8" width="8" height="8" fill={selectedTheme === 'horizontal1' ? formData.optionBorderColor : '#8c9196'} />
+                                    <rect x="20" y="8" width="8" height="8" fill={selectedTheme === 'horizontal1' ? formData.optionBorderColor : '#8c9196'} />
+                                  </svg>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                       
+                      </>
+                    </div>
+                  </Box>
+          
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h2">Offers</Text>
@@ -687,18 +1550,21 @@ export default function VolumeDiscount() {
                               {label: `Fixed Price (e.g. ${currencySymbol}10 )`, value: 'fixed'}
                             ]}
                             value={offer.discountType}
+                            error={errors.offers?.[index]?.discountType}
                             onChange={(value) => {
                               const newOffers = [...formData.offers];
                               newOffers[index].discountType = value;
                               setFormData({...formData, offers: newOffers});
                             }}
                           />
+                         
                         </Grid.Cell>
                         <Grid.Cell columnSpan={{xs: 6}}>
                           <TextField
                             label="Discount Value"
                             type="number"
                             value={offer.discountValue}
+                            error={errors.offers?.[index]?.discountValue}
                             onChange={(value) => {
                               const newOffers = [...formData.offers];
                               newOffers[index].discountValue = value;
@@ -713,8 +1579,10 @@ export default function VolumeDiscount() {
                         <Grid.Cell columnSpan={{xs: 6}}>
                           <TextField
                             label="Quantity"
+                            min={1}
                             type="number"
                             value={offer.quantity}
+                            error={errors.offers?.[index]?.quantity}
                             onChange={(value) => {
                               const newOffers = [...formData.offers];
                               newOffers[index].quantity = value;
@@ -726,6 +1594,7 @@ export default function VolumeDiscount() {
                           <TextField
                             label="Offer Title"
                             value={offer.offerTitle}
+                            error={errors.offers?.[index]?.offerTitle}
                             onChange={(value) => {
                               const newOffers = [...formData.offers];
                               newOffers[index].offerTitle = value;
@@ -816,6 +1685,78 @@ export default function VolumeDiscount() {
                 />
                 </Grid.Cell>
             </Grid>
+            </BlockStack>
+          </Card>
+
+          {/* Settings */}
+
+          <Card>
+            <BlockStack gap="200">
+              <Text variant="headingMd" as="h2">Settings</Text>
+                  <Checkbox
+                  label="Show each unit price"
+                  checked={formData.settings.showUnitPrice}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, showUnitPrice: checked }
+                  }))}
+                />
+                 {formData.settings.showUnitPrice && (
+                  <TextField
+                    value={formData.settings.unitPriceLabel}
+                    onChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      settings: { ...prev.settings, unitPriceLabel: value }
+                    }))}
+                    autoComplete="off"
+                  />
+                 )}
+      
+                <Checkbox
+                  label="Show total price"
+                  checked={formData.settings.showTotalPrice}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, showTotalPrice: checked }
+                  }))}
+                />
+      
+                <Checkbox
+                  label="Let customers choose different variants for each item"
+                  checked={formData.settings.allowVariants}
+                  disabled={formData.layout !== 'vertical'}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, allowVariants: checked }
+                  }))}
+                />
+      
+                <Checkbox
+                  label="Display widget below add to cart button"
+                  checked={formData.settings.displayBelowCart}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, displayBelowCart: checked }
+                  }))}
+                />
+      
+                <Checkbox
+                  label="Skip cart directly to checkout"
+                  checked={formData.settings.skipCart}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, skipCart: checked }
+                  }))}
+                />
+      
+                <Checkbox
+                  label="Show compare to price"
+                  checked={formData.settings.showComparePrice}
+                  onChange={(checked) => setFormData(prev => ({
+                    ...prev,
+                    settings: { ...prev.settings, showComparePrice: checked }
+                  }))}
+                />
             </BlockStack>
           </Card>
 
@@ -1151,7 +2092,7 @@ export default function VolumeDiscount() {
           </Card>
         </BlockStack>
       
-      <div style={{position:'sticky', top:'10px', height: 'fit-content'}} className="sticky-card">
+      <div style={{position:'sticky', top:'10px', height: 'fit-content', width:"410px", maxWidth:"410px"}} className="sticky-card">
       
        
         <Card>
@@ -1170,35 +2111,49 @@ export default function VolumeDiscount() {
                 marginBottom: '20px',
                 fontSize: `${formData.blockTitleSize}px`
               }}>
-                {formData.blockTitle || 'Bundle & Save'}
+                {formData.blockTitle}
               </span>
             
             <div style={{
             display: "flex",
-            flexDirection: 'column',
+            flexDirection: formData.layout === 'vertical' ? 'column' : 'row',
             gap: "15px",
           }}>
               {formData.offers.map((offer, index) => (
+                <>
                 <div 
                   key={index}
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    alignItems: 'start',
                     padding: '15px',
                     border: `${formData.borderWidth}px solid ${offer.active  ?  formData.optionBorderColor : '#ddd'}`,
                     borderRadius: `${formData.borderRadius}px`,
                     position: 'relative',
+                    width:  formData.layout === 'vertical' ? '100%': '33.33%',
                     backgroundColor: offer.active ? formData.optionBackgroundColor : formData.optionNonSelectedBackgroundColor
                   }}
                 >
+                  <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexDirection: formData.layout === 'vertical' ? 'row':'column',
+                    gap: '10px',
+                    width:"100%"
+                  }}
+                  >
                   {/* Custom Radio */}
                   <div style={{
                     width: '17px',
-                    height: '15px',
+                    height: '16px',
                     borderRadius: '50%',
                     border: `2px solid ${offer.active ? formData.optionBorderColor : 'grey'}`,
                     marginRight: '15px',
                     display: 'flex',
+                    margin: formData.layout === 'vertical' ? '0' : '0 auto',
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
@@ -1211,11 +2166,13 @@ export default function VolumeDiscount() {
                   </div>
 
                   {/* Offer Content */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexDirection: formData.layout === 'vertical' ? 'row':'column', gap: formData.layout === 'vertical' ? '0px': '10px' }}>
                     
-                    <span style={{ display: 'flex', flexDirection: 'column', fontSize: `${formData.offerTitleSize}px`, color: formData.offerTitleColor, [formData.offerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.offerTitleStyle }}>
-                      {offer.offerTitle || `Buy ${offer.quantity}`}<br/>
-                      <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData.selections[0].price) > 0 ? calculateDiscountedPrice(offer,formData.selections[0].price).toFixed(2) : formData.selections[0].price}</span>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap:formData.layout === 'vertical' ? '0px': '5px', alignItems:formData.layout === 'vertical' ? 'start': 'center', fontSize: `${formData.offerTitleSize}px`, color: formData.offerTitleColor, [formData.offerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.offerTitleStyle }}>
+                      {offer.offerTitle}<br/>
+                      <span style={{ fontSize: `${formData.priceTitleSize}px`, color: formData.priceTitleColor, [formData.priceTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.priceTitleStyle, lineHeight: '120%' }}>{currencySymbol}{calculateDiscountedPrice(offer,formData?.selections[0]?.price) > 0 ? calculateDiscountedPrice(offer,formData?.selections[0]?.price).toFixed(2) : formData?.selections[0]?.price}
+                        <span style={{ fontSize: "8px" }}>{formData?.settings?.showUnitPrice && formData?.settings?.unitPriceLabel}</span>
+                      </span>
                       {offer.discountValue && offer.discountValue > 0 && (
                         <span 
                           style={{ 
@@ -1226,10 +2183,13 @@ export default function VolumeDiscount() {
                             textDecoration: 'line-through'
                           }}
                         >
-                          {currencySymbol}
-                          {offer.quantity*formData.selections[0].price > 0 
-                            ? (offer.quantity*formData.selections[0].price).toFixed(2) 
-                            : formData.selections[0].price}
+                         {formData?.settings?.showComparePrice && (
+                            currencySymbol + 
+                            (offer.quantity * formData?.selections[0]?.price > 0 
+                              ? (offer.quantity * formData?.selections[0]?.price).toFixed(2) 
+                              : formData?.selections[0]?.price
+                            )
+                          )}
                         </span>
                       )}
                     </span>
@@ -1256,8 +2216,79 @@ export default function VolumeDiscount() {
                     </div>
                     </div>
                   </div>
-                  
+
+                  </div>
+
+                 {/* Offer Variants */}
+                 <div style={{width: "100%"}}>
+                 {formData?.settings?.allowVariants && 
+                      formData?.applyTo === 'PRODUCTS' && 
+                      formData?.selections[0]?.options?.length > 0 && 
+                      offer?.quantity && 
+                      parseInt(offer.quantity) > 0 && formData?.layout === 'vertical' && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          counterReset: 'item'
+                        }}>
+                        {[...Array(parseInt(offer?.quantity))].map((_, quantityIndex) => (
+                          <div 
+                            key={`quantity-${quantityIndex}`} 
+                            style={{
+                              display: 'flex',
+                              gap: '8px',
+                              padding: '4px 0',
+                              position: 'relative',
+                              paddingLeft: '20px',
+                              counterIncrement: 'item'
+                            }}
+                            className="variant-item"
+                          >
+                            <style>
+                              {`
+                                .variant-item::before {
+                                  content: counter(item);
+                                  position: absolute;
+                                  top:7px;
+                                  left: 8px;
+                                  color: #637381;
+                                  font-size: 9px;
+                                }
+                              `}
+                            </style>
+                            {formData?.selections[0]?.options?.map((option, optionIndex) => (
+                              <select
+                                key={`${quantityIndex}-${optionIndex}`}
+                                label={option.name}
+                                onChange={() => {}}
+                                value={option.values[0]}
+                                style={{
+                                  padding: '3px',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  border: '1px solid #d9d9d9',
+                                  backgroundColor: '#fff',
+                                  color: '#000',
+                                  width: '100%',
+                                  flex: 1
+                                }}
+                              >
+                                {option.values.map((value, valueIndex) => (
+                                  <option key={valueIndex} value={value}>
+                                    {value}
+                                  </option>
+                                ))}
+                              </select>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div> 
                 </div>
+                 
+                </>
               ))}
             </div>
             {(formData.footerText1 || formData.footerText2) && (
@@ -1266,16 +2297,23 @@ export default function VolumeDiscount() {
                 textAlign: 'center',
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between"
+                justifyContent: formData?.settings?.showTotalPrice?  "space-between": "center"
               }}>
                 {formData.footerText1 && (
-                    <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
-                    {formData.footerText1}
-                    </span>
-                )}
-                {formData.footerText2 && (
+                      <span 
+                        style={{
+                          fontSize: `${formData.footerTitleSize}px`, 
+                          color: formData.footerTitleColor, 
+                          [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle
+                        }}
+                      >
+                        {formData.footerText1}
+                      </span>
+                    )}
+                {formData.footerText2 && formData?.settings?.showTotalPrice && (
                    <span style={{fontSize: `${formData.footerTitleSize}px`, color: formData.footerTitleColor, [formData.footerTitleStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.footerTitleStyle}}>
-                    {formData.footerText2} {currencySymbol}{formData.offers.find(offer => offer.active === true)?.quantity*formData.selections[0].price}
+                    {formData.footerText2} {currencySymbol}{calculateDiscountedPrice2(formData.offers.find(offer => offer.active === true),formData?.selections[0]?.price) > 0 ? calculateDiscountedPrice2(formData.offers.find(offer => offer.active === true),formData?.selections[0]?.price).toFixed(2) : formData?.selections[0]?.price}
+                    
                     </span>
                 )}
               </div>
@@ -1285,6 +2323,7 @@ export default function VolumeDiscount() {
       </div>
       </div>
   );
+
   if (navigation.state === "loading") {
     return (
       <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh"}}>
@@ -1296,7 +2335,7 @@ export default function VolumeDiscount() {
     <Page
   backAction={{
     content: "Discounts",
-    onAction: () => navigate("/app")
+    onAction: () => navigate("/app/create-discount")
   }}
   title="Create Volume Discount"
   primaryAction={
@@ -1309,7 +2348,7 @@ export default function VolumeDiscount() {
       onAction: () => setStep(3)
     } : {
       content: 'Publish',
-      loading: isLoading,  // Add loading state
+      loading: isLoading, 
       disabled: isLoading,
       onAction: () => handleSave('published')
     }
@@ -1324,7 +2363,7 @@ export default function VolumeDiscount() {
     ] : [
       {
         content: 'Save as Draft',
-        loading: isLoading,  // Add loading state
+        loading: isLoading, 
         disabled: isLoading,
         onAction: () => handleSave('draft')
       },

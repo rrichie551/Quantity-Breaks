@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "4d6989a96f37a9f08b98c8e6819f9efe"
-application_url = "https://8cb7-2405-c140-5-5120-e925-ae82-e9df-b9aa.ngrok-free.app"
+application_url = "https://11fe-2405-201-402b-e14f-3ca6-36b8-e1c9-ec56.ngrok-free.app"
 embedded = true
 name = "Quantity-Breaks-Testing"
 handle = "quantity-breaks-testing-1"
@@ -20,13 +20,13 @@ scopes = "write_discounts,write_products,read_themes"
 
 [auth]
 redirect_urls = [
-  "https://8cb7-2405-c140-5-5120-e925-ae82-e9df-b9aa.ngrok-free.app/auth/callback",
-  "https://8cb7-2405-c140-5-5120-e925-ae82-e9df-b9aa.ngrok-free.app/auth/shopify/callback",
-  "https://8cb7-2405-c140-5-5120-e925-ae82-e9df-b9aa.ngrok-free.app/api/auth/callback"
+  "https://11fe-2405-201-402b-e14f-3ca6-36b8-e1c9-ec56.ngrok-free.app/auth/callback",
+  "https://11fe-2405-201-402b-e14f-3ca6-36b8-e1c9-ec56.ngrok-free.app/auth/shopify/callback",
+  "https://11fe-2405-201-402b-e14f-3ca6-36b8-e1c9-ec56.ngrok-free.app/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://8cb7-2405-c140-5-5120-e925-ae82-e9df-b9aa.ngrok-free.app/app/proxy"
+url = "https://11fe-2405-201-402b-e14f-3ca6-36b8-e1c9-ec56.ngrok-free.app/app/proxy"
 subpath = "quantityBreaks"
 prefix = "apps"
 

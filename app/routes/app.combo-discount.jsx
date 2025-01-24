@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Page, Spinner, Card, Text, BlockStack, Grid, Button,
-  TextField, Select, RangeSlider, Avatar
+  TextField, Select, RangeSlider, Avatar,InlineError,Checkbox
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../server/shopify.server";
@@ -12,6 +12,7 @@ import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import { DeleteIcon } from "@shopify/polaris-icons";
 import { QUERY } from "../api/QUERY";
 import { REGISTERC } from "../api/REGISTERC";
+
 
 // Loader and Action functions
 export const loader = async ({ request }) => {
@@ -104,13 +105,11 @@ export const action = async ({ request }) => {
     });
     const query = await admin.graphql(QUERY);
     const queryResponse = await query.json();
-    console.log("This is the query response",queryResponse);
+    
     const functionId = queryResponse.data.shopifyFunctions.edges.find(edge => edge.node.title === "combo-discount").node;
-    console.log("This is the functionId",functionId);
+    
     const response = await admin.graphql(REGISTERC(functionId.id));
-     const jsonResponse = await response.json(); 
-    console.log("This is the error",jsonResponse.data.discountAutomaticAppCreate.userErrors);
-     console.log("This is the response",jsonResponse);
+    await response.json();
 
     return json({ success: true, combo });
 
@@ -125,6 +124,7 @@ export default function ComboDiscount() {
   const action = useActionData();
   const app = useAppBridge();
   const submit = useSubmit();
+  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const currencyFormat = useLoaderData();
   const currencySymbol = currencyFormat.split('{{')[0].trim();
@@ -133,13 +133,18 @@ export default function ComboDiscount() {
   // Initial form state
   const [formData, setFormData] = useState({
     offerName: "",
-    comboTitle: "",
+    comboTitle: "Bundle & Save",
     products: [],
     discountType: "percentage",
     discountValue: "",
     callToAction: "Add to Cart",
     highlightedTag: "",
     footerText: "",
+    settings:{
+      showUnitPrice: false,
+      skipCart: false,
+      showComparePrice: true
+    },
     // UI Customization with defaults
     titleSize: 20,
     titleStyle: "normal",
@@ -186,6 +191,11 @@ export default function ComboDiscount() {
       const resourcePicker = await app.resourcePicker({
         type: "product",
         action: "select",
+        filter:{
+          variants: false,
+          draft: false,
+          archived: false
+        },
         multiple: 3,
         selectionIds: formData.products.map(product => ({ id: product.id }))
       });
@@ -266,7 +276,62 @@ export default function ComboDiscount() {
     }
   }, [action, app])
   // Save handler
+
+  // Add at top of file
+const validateForm = (data) => {
+  const errors = {};
+
+  // Basic Information Validation
+  if (!data.offerName?.trim()) {
+    errors.offerName = "Offer name is required";
+  }
+  if (!data.comboTitle?.trim()) {
+    errors.comboTitle = "Combo title is required";
+  }
+  if (!data.products?.length|| data.products.length < 2) {
+    errors.products = "Select at least 2 products";
+  }
+  if (data.products?.length > 3) {
+    errors.products = "Maximum 3 products allowed";
+  }
+
+  // Discount Validation
+  if (!data.discountValue?.trim()) {
+    errors.discountValue = "Discount value is required";
+  } else {
+    const value = parseFloat(data.discountValue);
+    switch (data.discountType) {
+      case 'percentage':
+        if (value <= 0 || value > 100) {
+          errors.discountValue = "Percentage must be between 0 and 100";
+        }
+        break;
+      case 'fixed':
+      case 'fixed-price':
+      case 'flat-per-item':
+        if (value <= 0) {
+          errors.discountValue = "Amount must be greater than 0";
+        }
+        break;
+    }
+  }
+
+  // UI Text Validation
+  if (!data.callToAction?.trim()) {
+    errors.callToAction = "Call to action text is required";
+  }
+
+  return errors;
+};
   const handleSave = async (status) => {
+    const errors = validateForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setErrors(errors);
+      app.toast.show("Operation Failed", { error: true });
+      return;
+    }
+
     const formDataToSend = new FormData();
     
     // Create a copy of formData with updated status
@@ -274,8 +339,6 @@ export default function ComboDiscount() {
       ...formData,
       status: status // Add the status to the form data
     };
-    
-    console.log("Updated formData: ", updatedFormData);
     
     // Append the updated data to FormData
     formDataToSend.append("formData", JSON.stringify(updatedFormData));
@@ -291,11 +354,12 @@ export default function ComboDiscount() {
   useEffect(() => {
     if (action?.success) {
       app.toast.show("Combo Created Successfully");
+      navigate("/app");
       setIsLoading(false);
     } else if (!action?.success) {
       setIsLoading(false);
     }
-  }, [action, app]);
+  }, [action,app,navigate]);
 
   if (navigation.state === "loading") {
     return (
@@ -309,7 +373,7 @@ export default function ComboDiscount() {
     <Page
     backAction={{
       content: "Discounts",
-      onAction: () => navigate("/app")
+      onAction: () => navigate("/app/create-discount")
     }}
     title="Create Combo Discount"
     primaryAction={{content: 'Publish', loading: isLoading, disabled: isLoading, onAction: () => handleSave('published')}}
@@ -338,6 +402,7 @@ export default function ComboDiscount() {
                   <TextField
                     label="Offer Name"
                     value={formData.offerName}
+                    error={errors.offerName}
                     onChange={(value) => setFormData({...formData, offerName: value})}
                     autoComplete="off"
                   />
@@ -345,6 +410,7 @@ export default function ComboDiscount() {
                   <TextField
                     label="Combo Title"
                     value={formData.comboTitle}
+                    error={errors.comboTitle}
                     onChange={(value) => setFormData({...formData, comboTitle: value})}
                     autoComplete="off"
                   />
@@ -352,6 +418,8 @@ export default function ComboDiscount() {
                   <Button variant="primary" onClick={handleProductsPicker}>
                     Select Products (Upto 3)
                   </Button>
+                  <InlineError message={errors.products} fieldID="myFieldID" />
+
                   
                   {/* Selected Products List */}
                   {formData.products.length > 0 && (
@@ -441,11 +509,44 @@ export default function ComboDiscount() {
                     label="Discount Value"
                     type="number"
                     value={formData.discountValue}
+                    error={errors.discountValue}
                     onChange={(value) => setFormData({...formData, discountValue: value})}
                     prefix={formData.discountType === 'percentage' ? '%' : currencySymbol}
                   />
                 </BlockStack>
               </Card>
+
+              {/* Functionality Settings */}
+               <Card>
+                          <BlockStack gap="200">
+                            <Text variant="headingMd" as="h2">Settings</Text>
+                                <Checkbox
+                                label="Show each unit price on product"
+                                checked={formData.settings.showUnitPrice}
+                                onChange={(checked) => setFormData(prev => ({
+                                  ...prev,
+                                  settings: { ...prev.settings, showUnitPrice: checked }
+                                }))}
+                              />
+                              <Checkbox
+                                label="Skip cart directly to checkout"
+                                checked={formData.settings.skipCart}
+                                onChange={(checked) => setFormData(prev => ({
+                                  ...prev,
+                                  settings: { ...prev.settings, skipCart: checked }
+                                }))}
+                              />
+                    
+                              <Checkbox
+                                label="Show compare at price for bundle"
+                                checked={formData.settings.showComparePrice}
+                                onChange={(checked) => setFormData(prev => ({
+                                  ...prev,
+                                  settings: { ...prev.settings, showComparePrice: checked }
+                                }))}
+                              />
+                          </BlockStack>
+                        </Card>
 
               {/* UI Text Settings */}
               <Card>
@@ -455,6 +556,7 @@ export default function ComboDiscount() {
                   <TextField
                     label="Call to Action Button Text"
                     value={formData.callToAction}
+                    error={errors.callToAction}
                     onChange={(value) => setFormData({...formData, callToAction: value})}
                   />
                   
@@ -901,7 +1003,7 @@ export default function ComboDiscount() {
                     <BlockStack gap="400">
                       <Text variant="headingSm" as="h3">Quantity Input Style</Text>
                       
-                        <Card>
+                       
                           <Text variant="bodyMd" as="h4">Input Field</Text>
                           <Grid>
                             
@@ -941,9 +1043,6 @@ export default function ComboDiscount() {
                               </div>
                             </Grid.Cell>
                           </Grid>
-                        </Card>
-                        
-                        <Card>
                           <Text variant="bodyMd" as="h4">Label</Text>
                           <Grid>
                             <Grid.Cell columnSpan={{xs: 4}}>
@@ -981,7 +1080,7 @@ export default function ComboDiscount() {
                               </div>
                             </Grid.Cell>
                           </Grid>
-                        </Card>
+                        
                      
                     </BlockStack>
                   </Card>
@@ -1072,7 +1171,10 @@ export default function ComboDiscount() {
                                 fontSize: `${formData.priceSize}px`,
                                 color: formData.priceColor
                                 }}>
-                                {currencySymbol}{(product.price * product.quantity).toFixed(2)}
+                                {currencySymbol}{formData?.settings?.showUnitPrice 
+                                                  ? product?.price
+                                                  : (product.price * product.quantity).toFixed(2)
+                                                }
                                 </span>
                             </div>
                             </div>
@@ -1119,7 +1221,7 @@ export default function ComboDiscount() {
                             fontSize: `${formData.totalPriceSize}px`,
                             color: formData.totalPriceColor
                         }}>
-                            {formData.discountValue && (
+                            {formData.discountValue && formData?.settings?.showComparePrice && (
                             <span style={{
                                 textDecoration: 'line-through',
                                 [formData.strikePriceStyle === 'italic' ? 'fontStyle' : 'fontWeight']: formData.strikePriceStyle,

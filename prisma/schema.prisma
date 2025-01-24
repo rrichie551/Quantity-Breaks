@@ -42,6 +42,8 @@ model Volume {
   status        String   @default("draft") // draft or published
   sessionId     String
   session       Session  @relation(fields: [sessionId], references: [id])
+  layout        String?
+  settings      Json?   
   
   // Offers Array as JSON
   offers        Json     // Array of objects containing:
@@ -115,6 +117,7 @@ model Combo {
   offerName     String
   comboTitle    String?
   products      Json     // Selected products array
+  settings      Json?   
   
   // Discount Settings
   discountType  String   // percentage, fixed, flat
