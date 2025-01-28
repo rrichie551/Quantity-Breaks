@@ -8,7 +8,7 @@
 var curr = {{ shop.currency | json }};
   var formatF = {{ shop.money_format | json }};
 
-  function formatMoney(cents, format) {
+function formatMoney(cents, format) {
   if (typeof cents === 'string') cents = cents.replace('.', '');
   var value = '';
   var placeholderRegex = /\{\{\s*(\w+)\s*\}\}/;
@@ -52,7 +52,6 @@ var curr = {{ shop.currency | json }};
   return formatString.replace(placeholderRegex, value);
 }
 const basePriceBase = {{ product.variants[0].price }};
-console.log(basePriceBase, "basePriceBase");
   function OptionsBundle() {
     const base = '{{ shop.url }}'
     const baseUrl = `${base}/apps/quantityBreaks`;
@@ -69,6 +68,7 @@ console.log(basePriceBase, "basePriceBase");
       }
       }).then(res => res.json()).then(x =>{
         const result = x.message.volumes;
+        
        
       result.map((volume)=>{
         
@@ -77,9 +77,17 @@ console.log(basePriceBase, "basePriceBase");
             document.querySelectorAll('.product-form__quantity').forEach(form => {
               form.style.display = 'none';
             });
+            document.querySelectorAll('shopify-accelerated-checkout').forEach(form => {
+              form.style.display = 'none';
+            });
             document.querySelectorAll('quantity-input').forEach(form => {
               form.style.display = 'none';
             });
+            if(volume.settings.allowVariants){
+            document.querySelectorAll('variant-selects').forEach(form =>{
+              form.style.display = 'none';
+            })
+            }
             const forms = document.querySelectorAll('form[action="/cart/add"]');
             const firstForm = forms[forms.length - 1];
             if (firstForm) {
@@ -100,250 +108,323 @@ console.log(basePriceBase, "basePriceBase");
         result.map((volume)=>{
           volume.selections.map((selection)=>{
             if(selection.id.replace('gid://shopify/Product/','') === '{{ product.id }}'){
-        function createVolumeDiscount(data, targetSelector) {
+                  function createVolumeDiscount(data, targetSelector) {
 
-            function calculateDiscountedPrice(offer, originalPrice) {
-              const ogPrice = formatMoney(originalPrice, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
-              console.log(ogPrice, "ogPrice");
-              const basePrice = offer.quantity * ogPrice;
-              
-              switch (offer.discountType) {
-                case 'percentage':
-                  return (basePrice - (basePrice * (parseFloat(offer.discountValue) / 100)))*100;
-                case 'flat':
-                  return (basePrice - parseFloat(offer.discountValue))*100;
-                case 'flat-per-item':
-                  return (basePrice - (parseFloat(offer.discountValue) * offer.quantity))*100;
-                case 'fixed':
-                  return (parseFloat(offer.discountValue) * offer.quantity)*100;
-                default:
-                  return basePrice*100;
+                      function calculateDiscountedPrice(offer, originalPrice) {
+                        const ogPrice = formatMoney(originalPrice, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
+                        let basePrice = ogPrice;
+                        if(!data.settings.showUnitPrice){
+                         basePrice = offer.quantity * ogPrice;
+                        }
+
+                        
+                        switch (offer.discountType) {
+                          case 'percentage':
+                            return (basePrice - (basePrice * (parseFloat(offer.discountValue) / 100)))*100;
+                          case 'flat':
+                            return (basePrice - parseFloat(offer.discountValue))*100;
+                          case 'flat-per-item':
+                            return (basePrice - (parseFloat(offer.discountValue) * offer.quantity))*100;
+                          case 'fixed':
+                            return (parseFloat(offer.discountValue) * offer.quantity)*100;
+                          default:
+                            return basePrice*100;
+                        }
+                      }
+
+                    // Create main container
+                    const container = document.createElement('div');
+                    container.style.backgroundColor = 'transparent';
+                    container.style.padding = '20px 0 20px 0';
+
+                    // Add block title
+                    const title = document.createElement('span');
+                    title.style.color = data.blockTitleColor;
+                    if(data.blockTitleStyle === 'italic'){
+                    title.style.fontStyle = data.blockTitleStyle;
+                    }
+                    else{
+                      title.style.fontWeight = data.blockTitleStyle;
+                    }
+                    title.style.textAlign = 'center';
+                    title.style.display = 'block';
+                    title.style.marginBottom = '20px';
+                    title.style.fontSize = `${data.blockTitleSize}px`;
+                    title.textContent = data.blockTitle || 'Bundle & Save';
+                    container.appendChild(title);
+
+                    // Create offers container
+                    const offersContainer = document.createElement('div');
+                    offersContainer.style.display = 'flex';
+                    offersContainer.style.flexDirection = data.layout === 'vertical' ? 'column' : 'row';
+                    offersContainer.style.gap = '15px';
+
+                    // Add offers
+                    data.offers.forEach(offer => {
+                      if (offer.active) {
+                        document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
+                          const quantityInput = document.createElement('input');
+                          quantityInput.type = 'hidden';
+                          quantityInput.className = "pfQuantity";
+                          quantityInput.name = 'quantity';
+                          quantityInput.value = offer.quantity;
+                          form.insertBefore(quantityInput, form.firstChild);
+                        });
+                        document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
+                          const quantityInput = document.createElement('input');
+                          quantityInput.type = 'hidden';
+                          quantityInput.name = 'properties[__discountTypePf]';
+                          quantityInput.className = 'discountTypePf';
+                          quantityInput.value = "Volume Discount";
+                          form.insertBefore(quantityInput, form.firstChild);
+                        });
+                        document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
+                          const quantityInput = document.createElement('input');
+                          quantityInput.type = 'hidden';
+                          quantityInput.name = 'properties[__discountValue]';
+                          quantityInput.className = 'discountValue';
+                          quantityInput.value = formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '') - formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
+                          form.insertBefore(quantityInput, form.firstChild);
+                        });
+                      }
+                      const offerDiv = document.createElement('div');
+                      offerDiv.style.display = 'flex';
+                      offerDiv.style.flexDirection = 'column';
+                      offerDiv.className = "volumeDiscountOffer"
+                      offerDiv.style.alignItems = 'center';
+                      offerDiv.style.width = data.layout === 'vertical' ? "100%": "33.33%";
+                      offerDiv.dataset.quantity = offer.quantity;
+                      offerDiv.dataset.discountLabel = offer.discountLabel;
+                      offerDiv.dataset.discountValue = `${formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '') - formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '')}`;
+                      offerDiv.dataset.actualValue = formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
+                      offerDiv.style.padding = '15px';
+                      offerDiv.style.border = `${data.borderWidth}px solid ${offer.active ? data.optionBorderColor : '#ddd'}`;
+                      offerDiv.style.borderRadius = `${data.borderRadius}px`;
+                      offerDiv.style.position = 'relative';
+                      offerDiv.style.backgroundColor = offer.active ? data.optionBackgroundColor : data.optionNonSelectedBackgroundColor;
+
+                      // Add radio button
+                      const offerDivInner = document.createElement('div');
+                      offerDivInner.style.display = 'flex';
+                      offerDivInner.style.flexDirection = data.layout === 'vertical' ? 'row' : 'column';
+                      offerDivInner.style.alignItems = 'center';
+                      offerDivInner.style.width = '100%';
+                      offerDivInner.style.gap = data.layout === 'vertical' ? '0px': '10px';
+                      const radio = document.createElement('div');
+                      radio.style.width = '17px';
+                      radio.style.height = '16px';
+                      radio.className = "volumeDiscountRadio"
+                      radio.style.borderRadius = '50%';
+                      radio.style.border = `2px solid ${offer.active ? data.optionBorderColor : 'grey'}`;
+                      radio.style.margin = data.layout === 'vertical' ? '0': '0 auto';
+                      radio.style.marginRight = data.layout === 'vertical' ? '15px': 'auto';
+                      radio.style.display = 'flex';
+                      radio.style.alignItems = 'center';
+                      radio.style.justifyContent = 'center';
+
+                      const radioInner = document.createElement('div');
+                      radioInner.style.width = '7px';
+                      radioInner.style.height = '7px';
+                      radioInner.className = "volumeDiscountRadioInner"
+                      radioInner.style.borderRadius = '50%';
+                      radioInner.style.display = 'block';
+                      radioInner.style.backgroundColor = offer.active ? data.optionBorderColor : 'transparent';
+                      radio.appendChild(radioInner);
+                      offerDivInner.appendChild(radio);
+
+                      // Add offer content
+                      const content = document.createElement('div');
+                      content.style.display = 'flex';
+                      content.style.alignItems = 'center';
+                      content.style.gap = '10px';
+                      content.style.flexDirection = data.layout === 'vertical' ? 'row' : 'column';
+                      content.style.justifyContent = 'space-between';
+                      content.style.width = '100%';
+
+                      // Left side (title and prices)
+                      const leftSide = document.createElement('span');
+                      leftSide.style.display = 'flex';
+                      leftSide.style.flexDirection = 'column';
+                      leftSide.style.alignItems = data.layout === 'vertical' ? 'start' : 'center';
+                      leftSide.style.gap = data.layout === 'vertical' ? '0px': '5px';
+                      leftSide.style.fontSize = `${data.offerTitleSize}px`;
+                      leftSide.style.color = data.offerTitleColor;
+                      if(data.offerTitleStyle === 'italic'){
+                        leftSide.style.fontStyle = data.offerTitleStyle;
+                      }
+                      else{
+                        leftSide.style.fontWeight = data.offerTitleStyle;
+                      }
+
+                      leftSide.innerHTML = `
+                        ${offer.offerTitle || `Buy ${offer.quantity}`}<br/>
+                        <span style="font-size: ${data.priceTitleSize}px; color: ${data.priceTitleColor}; font-style: ${data.priceTitleStyle}; line-height: 120%">
+                          ${formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }})} <span style="font-size:8px">${data.settings.showUnitPrice && data.settings.unitPriceLabel}</span>
+                        </span>
+                        ${offer.discountValue && data.settings.showComparePrice && offer.discountValue > 0 ? `
+                          <span style="font-size: ${data.cpriceTitleSize}px; color: ${data.cpriceTitleColor}; font-style: ${data.cpriceTitleStyle}; line-height: 120%; text-decoration: line-through">
+                          ${formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }})}
+                          </span>
+                        ` : ''}
+                      `;
+
+                      // Right side (tag and discount label)
+                      const rightSide = document.createElement('div');
+                      rightSide.style.display = 'flex';
+                      rightSide.style.flexDirection = 'column';
+                      rightSide.style.alignItems = 'center';
+
+                      if (offer.tag) {
+                        const tag = document.createElement('div');
+                        tag.style.backgroundColor = data.tagBackgroundColor;
+                        tag.style.color = data.tagTitleColor;
+                        tag.style.padding = '2px 4px';
+                        tag.style.lineHeight = '10px';
+                        tag.style.borderRadius = '4px';
+                        tag.style.fontSize = `${data.tagTitleSize}px`;
+                        if(data.tagTitleStyle === 'italic'){
+                          tag.style.fontStyle = data.tagTitleStyle;
+                        }
+                        else{
+                          tag.style.fontWeight = data.tagTitleStyle;
+                        }
+                        tag.textContent = offer.tag;
+                        rightSide.appendChild(tag);
+                      }
+
+                      if (offer.discountLabel) {
+                        const discountLabel = document.createElement('span');
+                        discountLabel.style.fontSize = `${data.discountLabelSize}px`;
+                        discountLabel.style.color = data.discountLabelColor;
+                        if(data.discountLabelStyle === 'italic'){
+                          discountLabel.style.fontStyle = data.discountLabelStyle;
+                        }
+                        else{
+                          discountLabel.style.fontWeight = data.discountLabelStyle;
+                        }
+                        discountLabel.textContent = offer.discountLabel;
+                        rightSide.appendChild(discountLabel);
+                      }
+
+                      content.appendChild(leftSide);
+                      content.appendChild(rightSide);
+                      offerDivInner.appendChild(content)
+                      offerDiv.appendChild(offerDivInner);
+                      // Add after content.appendChild(rightSide);
+                        if (data.settings.allowVariants && 
+                            data.applyTo === 'PRODUCTS' && 
+                            data.selections[0].options?.length > 0 && 
+                            offer.quantity && 
+                            parseInt(offer.quantity) > 0 && 
+                            data.layout === 'vertical') {
+
+                          const variantsContainer = document.createElement('div');
+                          const variantsList = document.createElement('ul');
+                          variantsList.style.fontSize = '12px';
+                          variantsList.style.listStyle = 'decimal';
+                          variantsList.style.margin = '0px';
+                          variantsContainer.style.width = '100%';
+                          variantsContainer.style.marginTop = '10px';
+                         
+
+                          // Create options for each quantity
+                          for (let i = 0; i < parseInt(offer.quantity); i++) {
+                            const variantRow = document.createElement('div');
+                            const variantli= document.createElement('li');
+                            variantRow.style.display = 'flex';
+                            variantRow.style.gap = '8px';
+                            variantRow.style.padding = '4px 0';
+                            variantRow.style.position = 'relative';
+                            variantRow.style.paddingLeft = '0px';
+                            variantRow.classList.add('variant-item');
+                            
+                            // Add counter style
+                           
+
+                            // Create select for each option
+                            data.selections[0].options.forEach(option => {
+                              const select = document.createElement('select');
+                              select.style.padding = '3px';
+                              select.style.borderRadius = '4px';
+                              select.style.fontSize = '12px';
+                              select.style.border = '1px solid #d9d9d9';
+                              select.style.backgroundColor = '#fff';
+                              select.style.color = '#000';
+                              select.style.flex = '1';
+
+                              option.values.forEach(value => {
+                                const optionElement = document.createElement('option');
+                                optionElement.value = value;
+                                optionElement.textContent = value;
+                                select.appendChild(optionElement);
+                              });
+
+                              variantRow.appendChild(select);
+                            });
+
+                            variantli.appendChild(variantRow);
+                            variantsList.appendChild(variantli);
+                          }
+                          variantsContainer.appendChild(variantsList);
+                          offerDiv.appendChild(variantsContainer);
+                        }
+                      offersContainer.appendChild(offerDiv);
+                    });
+
+                    container.appendChild(offersContainer);
+
+                    // Add footer if exists
+                    if (data.footerText1 || data.footerText2) {
+                      const footer = document.createElement('div');
+                      footer.style.marginTop = '20px';
+                      footer.style.textAlign = 'center';
+                      footer.style.display = 'flex';
+                      footer.style.alignItems = 'center';
+                      footer.style.justifyContent = 'space-between';
+
+                      if (data.footerText1) {
+                        const footerText1 = document.createElement('span');
+                        footerText1.style.fontSize = `${data.footerTitleSize}px`;
+                        footerText1.style.color = data.footerTitleColor;
+                        if(data.footerTitleStyle === 'italic'){
+                          footerText1.style.fontStyle = data.footerTitleStyle;
+                        }
+                        else{
+                          footerText1.style.fontWeight = data.footerTitleStyle;
+                        }
+                        footerText1.textContent = data.footerText1;
+                        footer.appendChild(footerText1);
+                      }
+
+                      if (data.footerText2) {
+                        const footerText2 = document.createElement('span');
+                        footerText2.style.fontSize = `${data.footerTitleSize}px`;
+                        footerText2.style.color = data.footerTitleColor;
+                        if(data.footerTitleStyle === 'italic'){
+                          footerText2.style.fontStyle = data.footerTitleStyle;
+                        }
+                        else{
+                          footerText2.style.fontWeight = data.footerTitleStyle;
+                        }
+                        const activeOffer = data.offers.find(offer => offer.active);
+                        footerText2.innerHTML = `${data.footerText2} <span class="discount-footer-text-value">${formatMoney(calculateDiscountedPrice(activeOffer, basePriceBase) > 0 ? calculateDiscountedPrice(activeOffer, basePriceBase) : basePriceBase, {{ shop.money_format | json }})}</span>`;
+                        footer.appendChild(footerText2);
+                      }
+
+                      container.appendChild(footer);
+                    }
+
+                    // Insert into target element
+                    const targetElement = document.querySelector(targetSelector);
+                    if (targetElement) {
+                      targetElement.appendChild(container);
+                    }
               }
-            }
-
-  // Create main container
-          const container = document.createElement('div');
-          container.style.backgroundColor = 'transparent';
-          container.style.padding = '20px 0 20px 0';
-
-          // Add block title
-          const title = document.createElement('span');
-          title.style.color = data.blockTitleColor;
-          if(data.blockTitleStyle === 'italic'){
-          title.style.fontStyle = data.blockTitleStyle;
-          }
-          else{
-            title.style.fontWeight = data.blockTitleStyle;
-          }
-          title.style.textAlign = 'center';
-          title.style.display = 'block';
-          title.style.marginBottom = '20px';
-          title.style.fontSize = `${data.blockTitleSize}px`;
-          title.textContent = data.blockTitle || 'Bundle & Save';
-          container.appendChild(title);
-
-          // Create offers container
-          const offersContainer = document.createElement('div');
-          offersContainer.style.display = 'flex';
-          offersContainer.style.flexDirection = 'column';
-          offersContainer.style.gap = '15px';
-
-          // Add offers
-          data.offers.forEach(offer => {
-            if (offer.active) {
-              document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
-                const quantityInput = document.createElement('input');
-                quantityInput.type = 'hidden';
-                quantityInput.className = "pfQuantity";
-                quantityInput.name = 'quantity';
-                quantityInput.value = offer.quantity;
-                form.insertBefore(quantityInput, form.firstChild);
-              });
-              document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
-                const quantityInput = document.createElement('input');
-                quantityInput.type = 'hidden';
-                quantityInput.name = 'properties[__discountTypePf]';
-                quantityInput.className = 'discountTypePf';
-                quantityInput.value = "Volume Discount";
-                form.insertBefore(quantityInput, form.firstChild);
-              });
-              document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
-                const quantityInput = document.createElement('input');
-                quantityInput.type = 'hidden';
-                quantityInput.name = 'properties[__discountValue]';
-                quantityInput.className = 'discountValue';
-                quantityInput.value = formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '') - formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
-                form.insertBefore(quantityInput, form.firstChild);
-              });
-            }
-            const offerDiv = document.createElement('div');
-            offerDiv.style.display = 'flex';
-            offerDiv.className = "volumeDiscountOffer"
-            offerDiv.style.alignItems = 'center';
-            offerDiv.dataset.quantity = offer.quantity;
-            offerDiv.dataset.discountLabel = offer.discountLabel;
-            offerDiv.dataset.discountValue = `${formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '') - formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '')}`;
-            offerDiv.dataset.actualValue = formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }}).replace(/[^0-9.]/g, '');
-            offerDiv.style.padding = '15px';
-            offerDiv.style.border = `${data.borderWidth}px solid ${offer.active ? data.optionBorderColor : '#ddd'}`;
-            offerDiv.style.borderRadius = `${data.borderRadius}px`;
-            offerDiv.style.position = 'relative';
-            offerDiv.style.backgroundColor = offer.active ? data.optionBackgroundColor : data.optionNonSelectedBackgroundColor;
-
-            // Add radio button
-            const radio = document.createElement('div');
-            radio.style.width = '17px';
-            radio.style.height = '15px';
-            radio.className = "volumeDiscountRadio"
-            radio.style.borderRadius = '50%';
-            radio.style.border = `2px solid ${offer.active ? data.optionBorderColor : 'grey'}`;
-            radio.style.marginRight = '15px';
-            radio.style.display = 'flex';
-            radio.style.alignItems = 'center';
-            radio.style.justifyContent = 'center';
-
-            const radioInner = document.createElement('div');
-            radioInner.style.width = '7px';
-            radioInner.style.height = '7px';
-            radioInner.className = "volumeDiscountRadioInner"
-            radioInner.style.borderRadius = '50%';
-            radioInner.style.display = 'block';
-            radioInner.style.backgroundColor = offer.active ? data.optionBorderColor : 'transparent';
-            radio.appendChild(radioInner);
-            offerDiv.appendChild(radio);
-
-            // Add offer content
-            const content = document.createElement('div');
-            content.style.display = 'flex';
-            content.style.alignItems = 'center';
-            content.style.justifyContent = 'space-between';
-            content.style.width = '100%';
-
-            // Left side (title and prices)
-            const leftSide = document.createElement('span');
-            leftSide.style.display = 'flex';
-            leftSide.style.flexDirection = 'column';
-            leftSide.style.fontSize = `${data.offerTitleSize}px`;
-            leftSide.style.color = data.offerTitleColor;
-            if(data.offerTitleStyle === 'italic'){
-              leftSide.style.fontStyle = data.offerTitleStyle;
-            }
-            else{
-              leftSide.style.fontWeight = data.offerTitleStyle;
-            }
-
-            leftSide.innerHTML = `
-              ${offer.offerTitle || `Buy ${offer.quantity}`}<br/>
-              <span style="font-size: ${data.priceTitleSize}px; color: ${data.priceTitleColor}; font-style: ${data.priceTitleStyle}; line-height: 120%">
-                ${formatMoney(calculateDiscountedPrice(offer, basePriceBase) > 0 ? calculateDiscountedPrice(offer, basePriceBase) : basePriceBase, {{ shop.money_format | json }})}
-              </span>
-              ${offer.discountValue && offer.discountValue > 0 ? `
-                <span style="font-size: ${data.cpriceTitleSize}px; color: ${data.cpriceTitleColor}; font-style: ${data.cpriceTitleStyle}; line-height: 120%; text-decoration: line-through">
-                ${formatMoney(offer.quantity * data.selections[0].price > 0 ? offer.quantity * basePriceBase : basePriceBase, {{ shop.money_format | json }})}
-                </span>
-              ` : ''}
-            `;
-
-            // Right side (tag and discount label)
-            const rightSide = document.createElement('div');
-            rightSide.style.display = 'flex';
-            rightSide.style.flexDirection = 'column';
-            rightSide.style.alignItems = 'center';
-
-            if (offer.tag) {
-              const tag = document.createElement('div');
-              tag.style.backgroundColor = data.tagBackgroundColor;
-              tag.style.color = data.tagTitleColor;
-              tag.style.padding = '2px 4px';
-              tag.style.lineHeight = '10px';
-              tag.style.borderRadius = '4px';
-              tag.style.fontSize = `${data.tagTitleSize}px`;
-              if(data.tagTitleStyle === 'italic'){
-                tag.style.fontStyle = data.tagTitleStyle;
-              }
-              else{
-                tag.style.fontWeight = data.tagTitleStyle;
-              }
-              tag.textContent = offer.tag;
-              rightSide.appendChild(tag);
-            }
-
-            if (offer.discountLabel) {
-              const discountLabel = document.createElement('span');
-              discountLabel.style.fontSize = `${data.discountLabelSize}px`;
-              discountLabel.style.color = data.discountLabelColor;
-              if(data.discountLabelStyle === 'italic'){
-                discountLabel.style.fontStyle = data.discountLabelStyle;
-              }
-              else{
-                discountLabel.style.fontWeight = data.discountLabelStyle;
-              }
-              discountLabel.textContent = offer.discountLabel;
-              rightSide.appendChild(discountLabel);
-            }
-
-            content.appendChild(leftSide);
-            content.appendChild(rightSide);
-            offerDiv.appendChild(content);
-            offersContainer.appendChild(offerDiv);
-          });
-
-          container.appendChild(offersContainer);
-
-          // Add footer if exists
-          if (data.footerText1 || data.footerText2) {
-            const footer = document.createElement('div');
-            footer.style.marginTop = '20px';
-            footer.style.textAlign = 'center';
-            footer.style.display = 'flex';
-            footer.style.alignItems = 'center';
-            footer.style.justifyContent = 'space-between';
-
-            if (data.footerText1) {
-              const footerText1 = document.createElement('span');
-              footerText1.style.fontSize = `${data.footerTitleSize}px`;
-              footerText1.style.color = data.footerTitleColor;
-              if(data.footerTitleStyle === 'italic'){
-                footerText1.style.fontStyle = data.footerTitleStyle;
-              }
-              else{
-                footerText1.style.fontWeight = data.footerTitleStyle;
-              }
-              footerText1.textContent = data.footerText1;
-              footer.appendChild(footerText1);
-            }
-
-            if (data.footerText2) {
-              const footerText2 = document.createElement('span');
-              footerText2.style.fontSize = `${data.footerTitleSize}px`;
-              footerText2.style.color = data.footerTitleColor;
-              if(data.footerTitleStyle === 'italic'){
-                footerText2.style.fontStyle = data.footerTitleStyle;
-              }
-              else{
-                footerText2.style.fontWeight = data.footerTitleStyle;
-              }
-              const activeOffer = data.offers.find(offer => offer.active);
-              footerText2.innerHTML = `${data.footerText2} <span class="discount-footer-text-value">${formatMoney(calculateDiscountedPrice(activeOffer, basePriceBase) > 0 ? calculateDiscountedPrice(activeOffer, basePriceBase) : basePriceBase, {{ shop.money_format | json }})}</span>`;
-              footer.appendChild(footerText2);
-            }
-
-            container.appendChild(footer);
-          }
-
-          // Insert into target element
-          const targetElement = document.querySelector(targetSelector);
-          if (targetElement) {
-            targetElement.appendChild(container);
-          }
-    }
-
-
-createVolumeDiscount(volume, '#volumeDiscount');
+              createVolumeDiscount(volume, '#volumeDiscount');
             }
           });
         });
-return result;
+        return result;
       }).then((result)=>{
         result.map((volume)=>{
           volume.selections.map((selection)=>{

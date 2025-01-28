@@ -44,17 +44,6 @@ export default function VolumeStep1({
                          }))}
                        />
                        
-                       <RadioButton
-                         label="Collections"
-                         checked={formData.applyTo === "COLLECTIONS"}
-                         id="collections-radio"
-                         name="apply-to"
-                         onChange={() => setFormData(prev => ({ 
-                           ...prev, 
-                           applyTo: "COLLECTIONS", 
-                           selections: [] 
-                         }))}
-                       />
                      </div>
                    </Box>
                    

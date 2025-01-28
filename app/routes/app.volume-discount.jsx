@@ -10,12 +10,13 @@ import { useNavigate,useLoaderData,useActionData,useSubmit, useNavigation } from
 import { fetchShopInfo } from "../server/fetchShopInfo.server";
 import prisma from "../db.server";
 import { json } from "@remix-run/node";
-import { QUERY } from "../api/QUERY";
-import { REGISTERV } from "../api/REGISTERV";
 import { GET_PRODUCTS } from "../api/GET_PRODUCTS";
 import VolumeStep1 from "../components/VolumeStep1";
 import VolumeStep2 from "../components/VolumeStep2";
 import VolumeStep3 from "../components/VolumeStep3";
+import { CREATE_DISCOUNT_NODE } from "../api/CREATE_DISCOUNT_NODE";
+import { DISCOUNT_NODES } from "../api/DISCOUNT_NODES";
+import {UPDATE_DISCOUNT_NODE} from "../api/UPDATE_DISCOUNT_NODE";
 
 export const loader = async ({ request }) => {
  const {admin} = await authenticate.admin(request);
@@ -36,7 +37,114 @@ export const action = async ({ request }) => {
 
   try {
     const data = JSON.parse(formData.get('formData'));
+    const functionId = process.env.SHOPIFY_BULK_DISCOUNT_ID;
+    const discounts = await admin.graphql(DISCOUNT_NODES);
+    const discountsJson = await discounts.json();
+    const discountNodes = discountsJson?.data?.automaticDiscountNodes?.edges?.filter((edge) => edge?.node?.automaticDiscount?.title === "bundlesuite-volume");
+    const title = "bundlesuite-volume";
+    const namespace = "bundlesuite-volume";
+    const key =  "function-configuration";
+    const GET_DISCOUNT = `query {
+  automaticDiscountNode(id: "${discountNodes[0]?.node?.id}") {
+     ... on DiscountAutomaticNode {
+            id
+            }
+            automaticDiscount {
+            ... on DiscountAutomaticApp {
+                    title 
+                }
+            }
+            metafield(namespace: "${namespace}", key: "${key}") {
+           		value
+							id
+            }
+  }
+      }`;
+    const existingDiscount = await admin.graphql(GET_DISCOUNT);
+    const existingDiscountJson = await existingDiscount.json();
+    const existingMetafield = existingDiscountJson.data?.automaticDiscountNode?.metafield;
+    const baseDiscount = {
+      functionId,
+      title,
+      startsAt: new Date(),
+      endsAt: null,
+    };
 
+    let metafieldValue;
+if (existingMetafield) {
+  
+  const existingValue = JSON.parse(existingMetafield.value);
+  metafieldValue = {
+    ...existingValue,
+    selectedCollectionIds: data.applyTo === 'COLLECTIONS' 
+      ? data.selections.map(selection => selection.id)
+      : [],
+    [data.offerName]: {
+      selectedCollections: data.applyTo === 'COLLECTIONS' 
+        ? data.selections.map(selection => selection.id)
+        : [],
+      discountTarget: data.applyTo,
+      discounts: data.offers.map(offer => ({
+        productId: data.applyTo === 'PRODUCTS' 
+          ? data.selections.map(selection => selection.id)
+          : [],
+        quantity: parseInt(offer.quantity),
+        percentage: offer.discountType === 'percentage' ? parseFloat(offer.discountValue) : null,
+        amount: offer.discountType === 'fixed' || offer.discountType === 'flat-per-item' ? parseFloat(offer.discountValue) : null,
+        appliesToEachItem: offer.discountType === 'flat-per-item',
+        title: offer.offerTitle,
+        type: offer.discountType
+      }))
+    }
+  };
+} else {
+  
+  metafieldValue = {
+    selectedCollectionIds: data.applyTo === 'COLLECTIONS' 
+      ? data.selections.map(selection => selection.id)
+      : [],
+    [data.offerName]: {
+      selectedCollections: data.applyTo === 'COLLECTIONS' 
+        ? data.selections.map(selection => selection.id)
+        : [],
+      discountTarget: data.applyTo,
+      discounts: data.offers.map(offer => ({
+        productId: data.applyTo === 'PRODUCTS' 
+          ? data.selections.map(selection => selection.id)
+          : [],
+        quantity: parseInt(offer.quantity),
+        percentage: offer.discountType === 'percentage' ? parseFloat(offer.discountValue) : null,
+        amount: offer.discountType === 'fixed' || offer.discountType === 'flat-per-item' ? parseFloat(offer.discountValue) : null,
+        appliesToEachItem: offer.discountType === 'flat-per-item',
+        title: offer.offerTitle,
+        type: offer.discountType
+      }))
+    }
+  };
+}
+
+const metafields = [
+  {
+    namespace: namespace,
+    key: key,
+    type: "json",
+    value: JSON.stringify(metafieldValue)
+  }
+];
+
+if(!discountNodes){
+  
+const response = await admin.graphql(CREATE_DISCOUNT_NODE, {
+  variables: {
+    discount: {
+      ...baseDiscount,
+      metafields,
+    },
+  },
+});
+
+    const responseJson = await response.json();
+    const errors = responseJson.data.discountCreate?.userErrors;
     const volume = await prisma.volume.create({
       data: {
         sessionId: session.id,  // Link to the current session
@@ -44,6 +152,8 @@ export const action = async ({ request }) => {
         applyTo: data.applyTo,
         selections: data.selections, // Already stringified
         discountType: data.discountType,
+        settings: data.settings,
+        layout: data.layout,
         status: data.status,
         offers: data.offers, // Already stringified
         blockTitle: data.blockTitle,
@@ -78,12 +188,85 @@ export const action = async ({ request }) => {
         borderRadius: data.borderRadius,
       }
     });
-    const query = await admin.graphql(QUERY);
-    const queryResponse = await query.json();
-      const functionId = queryResponse.data.shopifyFunctions.edges.find(edge => edge.node.title === "ProfitSuite").node;
-      const response = await admin.graphql(REGISTERV(functionId.id));
-      await response.json(); 
+    if(errors){
+    return json({ success: false, error: errors });
+  }
+  else{
     return json({ success: true, volume });
+  }
+}
+else{
+  const response = await admin.graphql(UPDATE_DISCOUNT_NODE,
+    {
+      variables: {
+        id: discountNodes[0]?.node?.id,
+        automaticAppDiscount: {
+            ...baseDiscount,
+            metafields:[{
+              namespace: namespace,
+              key: key,
+              id: existingMetafield.id,
+              type: "json",
+              value: JSON.stringify(metafieldValue)
+            }]
+        }
+      },
+    },
+  );
+  
+      const responseJson = await response.json();
+      const errors = responseJson.data.discountCreate?.userErrors;
+      const volume = await prisma.volume.create({
+        data: {
+          sessionId: session.id,  // Link to the current session
+          offerName: data.offerName,
+          applyTo: data.applyTo,
+          selections: data.selections, // Already stringified
+          discountType: data.discountType,
+          settings: data.settings,
+          layout: data.layout,
+          status: data.status,
+          offers: data.offers, // Already stringified
+          blockTitle: data.blockTitle,
+          blockTitleSize: data.blockTitleSize,
+          blockTitleStyle: data.blockTitleStyle,
+          blockTitleColor: data.blockTitleColor,
+          offerTitleSize: data.offerTitleSize,
+          offerTitleStyle: data.offerTitleStyle,
+          offerTitleColor: data.offerTitleColor,
+          discountLabelSize: data.discountLabelSize,
+          discountLabelStyle: data.discountLabelStyle,
+          discountLabelColor: data.discountLabelColor,
+          priceTitleSize: data.priceTitleSize,
+          priceTitleStyle: data.priceTitleStyle,
+          priceTitleColor: data.priceTitleColor,
+          cpriceTitleSize: data.cpriceTitleSize,
+          cpriceTitleStyle: data.cpriceTitleStyle,
+          cpriceTitleColor: data.cpriceTitleColor,
+          tagTitleSize: data.tagTitleSize,
+          tagTitleStyle: data.tagTitleStyle,
+          tagTitleColor: data.tagTitleColor,
+          tagBackgroundColor: data.tagBackgroundColor,
+          footerText1: data.footerText1,
+          footerText2: data.footerText2,
+          footerTitleSize: data.footerTitleSize,
+          footerTitleStyle: data.footerTitleStyle,
+          footerTitleColor: data.footerTitleColor,
+          optionBorderColor: data.optionBorderColor,
+          optionBackgroundColor: data.optionBackgroundColor,
+          optionNonSelectedBackgroundColor: data.optionNonSelectedBackgroundColor,
+          borderWidth: data.borderWidth,
+          borderRadius: data.borderRadius,
+        }
+      });
+      if(errors){
+      return json({ success: false, error: errors });
+    }
+    else{
+      return json({ success: true, volume });
+    }
+}
+
 
   } catch (error) {
     console.error('Error creating volume discount:', error);
@@ -176,6 +359,7 @@ export default function VolumeDiscount() {
   const {currencyFormat, products} = useLoaderData();
   
   const navigation = useNavigation();
+
   useEffect(() => {
     if (action?.success) {
       app.toast.show("Discount Created Successfully");
@@ -198,7 +382,7 @@ export default function VolumeDiscount() {
         multiple: true,
         selectionIds: formData.selections.map(product => ({ id: product.id }))
       });
-      console.log("Select: ",resourcePicker);
+      
       if (resourcePicker && resourcePicker.length > 0) {
         const selectedProducts = resourcePicker.map(product => ({
           id: product.id,
@@ -208,7 +392,7 @@ export default function VolumeDiscount() {
           price: product.variants[0].price,
           options: product.options
         }));
-        console.log("Selected products: " + selectedProducts);
+       
         setFormData(prev => ({
           ...prev,
           selections: selectedProducts
@@ -345,7 +529,7 @@ export default function VolumeDiscount() {
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       app.toast.show("Operation Failed", { isError: true });
-      console.log(validationErrors);
+     
       return;
     }
     const formDataToSend = new FormData();

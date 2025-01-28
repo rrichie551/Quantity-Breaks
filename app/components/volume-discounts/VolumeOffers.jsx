@@ -343,17 +343,7 @@ export default function VolumeOffers({
                               }))}
                             />
                             
-                            <RadioButton
-                              label="Collections"
-                              checked={formData.applyTo === "COLLECTIONS"}
-                              id="collections-radio"
-                              name="apply-to"
-                              onChange={() => setFormData(prev => ({ 
-                                ...prev, 
-                                applyTo: "COLLECTIONS", 
-                                selections: [] 
-                              }))}
-                            />
+                           
                           </div>
                                       </Box>
                                       {formData.applyTo === "PRODUCTS" && (
